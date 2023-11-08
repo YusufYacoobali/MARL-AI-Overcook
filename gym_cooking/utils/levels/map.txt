@@ -1,0 +1,12 @@
+-    
+*p p 
+/    
+ llpt
+     
+
+SimpleLettuce
+
+2 1
+4 1
+4 4
+2 4

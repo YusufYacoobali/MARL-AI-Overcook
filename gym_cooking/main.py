@@ -64,7 +64,6 @@ def initialize_agents(arglist):
             line = line.strip('\n')
             if line == '':
                 phase += 1
-
             # phase 2: read in recipe list
             elif phase == 2:
                 recipes.append(globals()[line]())
@@ -82,12 +81,58 @@ def initialize_agents(arglist):
 
     return real_agents
 
+def generate_random_map(file_path, width, height, num_objects):
+    # List of possible object characters and grid square characters
+    object_chars = "tlop/-/*"
+
+     # Calculate the number of empty spaces
+    num_empty_spaces = int(width * height * 0.5)
+
+    random.seed()
+    # Create a list of characters with the specified distribution
+    characters = list(object_chars * num_objects + " " * (width * height - num_objects))
+    random.shuffle(characters)
+
+    # Create a random layout for the map
+    layout = [characters[i:i + width] for i in range(0, width * height, width)]
+
+
+    # Place 'p' characters for players
+    player_locations = [(1, 1), (width - 2, 1), (width - 2, height - 2), (1, height - 2)]
+    for x, y in player_locations:
+        layout[y][x] = 'p'
+
+    # Place objects ('t', 'l', 'o', 'p') on the map
+    for _ in range(num_objects):
+        x = random.randint(1, width - 2)
+        y = random.randint(1, height - 2)
+        layout[y][x] = random.choice(object_chars)
+
+    layout.append(["\n", "SimpleLettuce", "\n"])
+
+    lettuce_coordinates = [
+        (2, 1),
+        (4, 1),
+        (4, 4),
+        (2, 4)
+    ]
+
+    for x, y in lettuce_coordinates:
+        layout.append([str(x), " ", str(y)])
+    # Write the generated layout to the specified file
+    with open(file_path, 'w') as f:
+        for row in layout:
+            f.write("".join(row) + '\n')
+    print("file made")
+
 def main_loop(arglist):
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
+    map = generate_random_map('utils/levels/map.txt',5,5,1)
+    arglist.level = "map"
     env = gym.envs.make("gym_cooking:overcookedEnv-v0", arglist=arglist)
     obs = env.reset()
-    # game = GameVisualize(env)
+    #game = GameVisualize(env)
     real_agents = initialize_agents(arglist=arglist)
 
     # Info bag for saving pkl files
