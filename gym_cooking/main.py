@@ -1,6 +1,7 @@
-# from environment import OvercookedEnvironment
-# from gym_cooking.envs import OvercookedEnvironment
+#from environment import OvercookedEnvironment
+#from gym_cooking.envs import OvercookedEnvironment
 from recipe_planner.recipe import *
+from utils.map import Map
 from utils.world import World
 from utils.agent import RealAgent, SimAgent, COLORS
 from utils.core import *
@@ -21,6 +22,8 @@ def parse_arguments():
     # Environment
     parser.add_argument("--level", type=str, required=True)
     parser.add_argument("--num-agents", type=int, required=True)
+    parser.add_argument("--grid-size", type=str, required=True)
+    parser.add_argument("--grid-type", type=str, required=True)
     parser.add_argument("--max-num-timesteps", type=int, default=100, help="Max number of timesteps to run")
     parser.add_argument("--max-num-subtasks", type=int, default=14, help="Max number of subtasks for recipe")
     parser.add_argument("--seed", type=int, default=1, help="Fix pseudorandom seed")
@@ -81,54 +84,12 @@ def initialize_agents(arglist):
 
     return real_agents
 
-def generate_random_map(file_path, width, height, num_objects):
-    # List of possible object characters and grid square characters
-    object_chars = "tlop/-/*"
-
-     # Calculate the number of empty spaces
-    num_empty_spaces = int(width * height * 0.5)
-
-    random.seed()
-    # Create a list of characters with the specified distribution
-    characters = list(object_chars * num_objects + " " * (width * height - num_objects))
-    random.shuffle(characters)
-
-    # Create a random layout for the map
-    layout = [characters[i:i + width] for i in range(0, width * height, width)]
-
-
-    # Place 'p' characters for players
-    player_locations = [(1, 1), (width - 2, 1), (width - 2, height - 2), (1, height - 2)]
-    for x, y in player_locations:
-        layout[y][x] = 'p'
-
-    # Place objects ('t', 'l', 'o', 'p') on the map
-    for _ in range(num_objects):
-        x = random.randint(1, width - 2)
-        y = random.randint(1, height - 2)
-        layout[y][x] = random.choice(object_chars)
-
-    layout.append(["\n", "SimpleLettuce", "\n"])
-
-    lettuce_coordinates = [
-        (2, 1),
-        (4, 1),
-        (4, 4),
-        (2, 4)
-    ]
-
-    for x, y in lettuce_coordinates:
-        layout.append([str(x), " ", str(y)])
-    # Write the generated layout to the specified file
-    with open(file_path, 'w') as f:
-        for row in layout:
-            f.write("".join(row) + '\n')
-    print("file made")
-
 def main_loop(arglist):
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
-    map = generate_random_map('utils/levels/map.txt',5,5,1)
+    #map = generate_random_map('utils/levels/map.txt',1, arglist=arglist)
+    map = Map(file_path='utils/levels/map.txt', num_objects=1, arglist=arglist)
+    map.generate_map()
     arglist.level = "map"
     env = gym.envs.make("gym_cooking:overcookedEnv-v0", arglist=arglist)
     obs = env.reset()
@@ -175,4 +136,63 @@ if __name__ == '__main__':
         fix_seed(seed=arglist.seed)
         main_loop(arglist=arglist)
 
+# def generate_random_map(file_path, num_objects, arglist):
+#     # List of possible object characters and grid square characters
+#     print(arglist.grid_size)
+#     print(arglist.grid_type)
+#     width, height = map(int, arglist.grid_size.split('x'))
+#     object_chars = "tlop/-/*"
 
+#     # grid_type_info = {
+#     #     'r': (generate_random_layout, 'random_map'),
+#     #     's': (generate_spread_out_layout, 'spread_out_map'),
+#     #     'a': (generate_all_blocked_layout, 'all_blocked_map'),
+#     #     't': (generate_trapped_layout, 'trapped_map'),
+#     # }
+
+#     # Get the appropriate function based on the grid type
+#     #generator_function = grid_type_functions.get(arglist.grid_type.lower())
+
+#     # if generator_function is None:
+#     #     print(f"Invalid grid type: {arglist.grid_type}")
+#     #     return
+
+#     # # Call the selected generator function
+#     # layout = generator_function(width, height, num_objects, object_chars)
+
+#     random.seed()
+#     # Create a list of characters with the specified distribution
+#     characters = list(object_chars * num_objects + " " * (width * height - num_objects))
+#     random.shuffle(characters)
+
+#     # Create a random layout for the map
+#     layout = [characters[i:i + width] for i in range(0, width * height, width)]
+
+#     # Place 'p' characters for players
+#     # need to do it in empty spaces
+#     player_locations = [(1, 1), (width - 2, 1), (width - 2, height - 2), (1, height - 2)]
+#     for x, y in player_locations:
+#         layout[y][x] = 'p'
+
+#     # Place objects ('t', 'l', 'o', 'p') on the map
+#     for _ in range(num_objects):
+#         x = random.randint(1, width - 2)
+#         y = random.randint(1, height - 2)
+#         layout[y][x] = random.choice(object_chars)
+
+#     layout.append(["\n", "SimpleLettuce", "\n"])
+
+#     lettuce_coordinates = [
+#         (2, 1),
+#         (4, 1),
+#         (4, 4),
+#         (2, 4)
+#     ]
+
+#     for x, y in lettuce_coordinates:
+#         layout.append([str(x), " ", str(y)])
+#     # Write the generated layout to the specified file
+#     with open(file_path, 'w') as f:
+#         for row in layout:
+#             f.write("".join(row) + '\n')
+#     print("file made")
