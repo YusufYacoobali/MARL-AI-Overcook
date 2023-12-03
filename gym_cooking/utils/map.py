@@ -11,6 +11,7 @@ class Map:
         self.population_size = 3
         self.num_generations = 3
         self.population = None
+        random.seed()
 
     def generate_random_layout(self):
         characters = list(self.object_chars * self.num_objects + " " * (self.width * self.height - self.num_objects))
@@ -32,7 +33,7 @@ class Map:
         else:
             print(f"Invalid grid type: {self.type}")
 
-        return fitness_score
+        return (map,fitness_score)
 
     def calculate_collab_fitness(self, map):
         blocked_score = 0
@@ -116,10 +117,10 @@ class Map:
         if separated_regions > 1:
             separated_regions = 10
         collaboration_score = separated_regions + distance_score
-        # print("Collaboration Fitness:", collaboration_score)
+        print("Collaboration Fitness:", collaboration_score)
         # print("separated regions:", separated_regions)
         # print("dist Score:", distance_score)
-        return collaboration_score, blocked_score, distance_score  # Su
+        return collaboration_score # Su
 
 
     def crossover(self, other_map):
@@ -132,14 +133,10 @@ class Map:
         # Introduce random changes to encourage diversity
         pass
 
-    def evolve_population(self, population):
-        # Select maps for reproduction based on fitness
-        selected_maps = self.select_maps_for_reproduction(population)
-
-        # Create the next generation
+    def evolve_population(self, selected_maps):
         next_generation = []
 
-        while len(next_generation) < len(population):
+        while len(next_generation) < len(self.population):
             # Choose parents for crossover
             parent1 = random.choice(selected_maps)
             parent2 = random.choice(selected_maps)
@@ -156,9 +153,16 @@ class Map:
         return next_generation
 
     def select_maps_for_reproduction(self):
-        # Implement selection mechanism based on fitness
-        # Higher fitness maps have a higher chance of being selected
-        pass
+        
+        best_maps = [self.evaluate_fitness(map_instance) for map_instance in self.population]
+        # Sort the list based on fitness in descending order
+        sorted_best_maps = sorted(best_maps, key=lambda x: x[1], reverse=True)
+
+        # Select the top 1/3 of the best maps
+        top_third = int(len(sorted_best_maps) / 3)
+        selected_maps = sorted_best_maps[:top_third]
+        print("Best map had score: ", selected_maps[-1][1])
+        return selected_maps
 
     def genetic_algorithm(self):
         # Generate an initial population
@@ -166,11 +170,13 @@ class Map:
 
         for generation in range(self.num_generations):
             # Evaluate fitness for each map in the population
-            for map_instance in self.population:
-                self.evaluate_fitness(map_instance)
+            # for map_instance in self.population:
+            #     self.evaluate_fitness(map_instance)
+
+            selected_maps = self.select_maps_for_reproduction()
 
             # Create the next generation
-            self.population = self.evolve_population()
+            self.population = self.evolve_population(selected_maps)
 
             # Optionally, you can keep track of the best map in each generation
             best_map = max(self.population, key=lambda x: x.fitness)
