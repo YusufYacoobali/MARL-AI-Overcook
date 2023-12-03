@@ -1,116 +1,132 @@
 import random
 
 class Map:
-    def __init__(self, file_path, num_objects, arglist):
+    def _init_(self, file_path, num_objects, arglist):
         self.width, self.height = map(int, arglist.grid_size.split('x'))
         self.arglist = arglist
         self.num_objects = num_objects
         self.file_path = file_path
         self.layout = None
-        self.object_chars = "tlop/-/*"
+        self.object_chars = "tlp-/*"
         self.layout = None
+        self.population_size = 3
+        self.num_generations = 3
+        self.population = None
 
     def generate_random_layout(self):
         characters = list(self.object_chars * self.num_objects + " " * (self.width * self.height - self.num_objects))
         random.shuffle(characters)
-        self.layout = [characters[i:i + self.width] for i in range(0, self.width * self.height, self.width)]
+        layout = [characters[i:i + self.width] for i in range(0, self.width * self.height, self.width)]
+        return layout
 
-    def generate_spread_out_layout(self):
-        # Implement logic for spread-out map generation
-        # Workstations are far apart, and cooperation is not required
+    def evaluate_fitness(self):
+        fitness_score = 0
+        if self.type == 'r':
+            #fully random map
+            fitness_score = self.calculate_random_fitness()
+        elif self.type == 's':
+            #spread out map
+            fitness_score = self.calculate_spread_fitness()
+        elif self.type == 'a':
+            #all blocked map
+            fitness_score = self.calculate_collab_optional_fitness()
+        elif self.type == 't':
+            #trapped map
+            fitness_score = self.calculate_collab_fitness()
+        else:
+            print(f"Invalid grid type: {self.type}")
 
-        # Set a minimum distance between workstations
-        min_distance = 3
-        # Number of workstations
-        num_workstations = self.num_objects
-        # Create an empty layout
-        self.layout = [[" " for _ in range(self.width)] for _ in range(self.height)]
+        return fitness_score
+    
+    def calculate_collab_fitness():
+            # Calculate fitness based on collaboration requirements in trapped map
+        collaboration_score = 0
 
-        # Place workstations randomly with a minimum distance
-        for _ in range(num_workstations):
-            x, y = random.randint(1, self.width - 2), random.randint(1, self.height - 2)
-            
-            # Check minimum distance from existing workstations
-            while any(abs(x - wx) < min_distance and abs(y - wy) < min_distance for wx, wy in self.workstations):
-                x, y = random.randint(1, self.width - 2), random.randint(1, self.height - 2)
-            
-            self.workstations.append((x, y))
-            self.layout[y][x] = random.choice(self.object_chars)
-
-    def generate_all_blocked_layout(self):
-        # Implement logic for all blocked map generation
-        # A wall is put in the middle, and both sides have all workstations
-        # Create an empty layout
-        self.layout = [[" " for _ in range(self.width)] for _ in range(self.height)]
-
-        # Create a vertical wall in the middle
-        wall_x = self.width // 2
-        for y in range(self.height):
-            self.layout[y][wall_x] = "|"
-
-        # Place workstations on both sides of the wall
-        for x in range(wall_x):
-            for y in range(1, self.height - 1):
-                self.layout[y][x] = random.choice(self.object_chars)
-
-        for x in range(wall_x + 1, self.width - 1):
-            for y in range(1, self.height - 1):
-                self.layout[y][x] = random.choice(self.object_chars)
-
-    def generate_trapped_layout(self):
-        # Create an empty layout
-        self.layout = [[" " for _ in range(self.width)] for _ in range(self.height)]
-        # Determine the location of the blocking wall
-        #its the same each time, need to FIX
-        wall_x, wall_y = random.randint(1, self.width - 1), random.randint(1, self.height - 1)
-        print(wall_x, wall_y)
-
-        random.seed()
-        characters = list(self.object_chars * self.num_objects + " " * (self.width * self.height - self.num_objects))
-        random.shuffle(characters)
-        self.layout = [characters[i:i + self.width] for i in range(0, self.width * self.height, self.width)]
-               # Place the blocking walls to create a gap in the middle
+        # Iterate through the map layout to identify collaboration opportunities
         for y in range(self.height):
             for x in range(self.width):
-                if x == wall_x and y <= wall_y:
-                    self.layout[y][x] = "-"
-                elif y == wall_y and x < wall_x:
-                    self.layout[y][x] = "-"
+                if self.layout[y][x] == '-':
+                    # Found a wall, check for collaboration opportunities on either side
+                    left_side = self.layout[y][:x]
+                    right_side = self.layout[y][x + 1:]
+
+                    # Check if there's a workstation (ingredient, slicing counter, etc.) on one side
+                    if any(obj in left_side for obj in ['t', 'l', 'p', '*']) and any(obj in right_side for obj in ['t', 'l', 'p', '*']):
+                        # Collaboration opportunity found, increase the collaboration score
+                        collaboration_score += 1
+
+        # You can adjust the scoring based on the importance of collaboration in your game
+        return collaboration_score
+
+    def crossover(self, other_map):
+        # Implement crossover operation between two maps
+        # Exchange segments of genetic information (map layout)
+        pass
+
+    def mutate(self):
+        # Implement mutation operation on the map
+        # Introduce random changes to encourage diversity
+        pass
+
+    def evolve_population(self, population):
+        # Select maps for reproduction based on fitness
+        selected_maps = self.select_maps_for_reproduction(population)
+
+        # Create the next generation
+        next_generation = []
+
+        while len(next_generation) < len(population):
+            # Choose parents for crossover
+            parent1 = random.choice(selected_maps)
+            parent2 = random.choice(selected_maps)
+
+            # Perform crossover to create offspring
+            child = parent1.crossover(parent2)
+
+            # Apply mutation to the child
+            child.mutate()
+
+            # Add the child to the next generation
+            next_generation.append(child)
+
+        return next_generation
+
+    def select_maps_for_reproduction(self):
+        # Implement selection mechanism based on fitness
+        # Higher fitness maps have a higher chance of being selected
+        pass
+
+    def genetic_algorithm(self):
+        # Generate an initial population
+        self.population = [self.generate_random_layout() for _ in range(self.population_size)]
+
+        for generation in range(self.num_generations):
+            # Evaluate fitness for each map in the population
+            for map_instance in self.population:
+                map_instance.evaluate_fitness()
+
+            # Create the next generation
+            self.population = self.evolve_population()
+
+            # Optionally, you can keep track of the best map in each generation
+            best_map = max(self.population, key=lambda x: x.fitness)
+            print(f"Generation {generation + 1}, Best Fitness: {best_map.fitness}")
+
+        # Get the optimal map from the final generation
+        self.layout = max(self.population, key=lambda x: x.fitness)
+        # Optionally, return or save the best map from the final generation
+        #return max(population, key=lambda x: x.fitness)
 
     def generate_best_map(self):
         pass
 
     def generate_map(self):
-        type = self.arglist.grid_type.lower()
-        if type == 'r':
-            self.generate_random_layout()
-        elif type == 's':
-            self.generate_spread_out_layout()
-        elif type == 'a':
-            self.generate_all_blocked_layout()
-        elif type == 't':
-            self.generate_trapped_layout()
-        else:
-            print(f"Invalid grid type: {type}")
+        self.type = self.arglist.grid_type.lower()
+        self.genetic_algorithm()
         self.place_players_and_objects()
 
     def place_players_and_objects(self):
-        # object_chars = "tlop/-/*"
-        # random.seed()
-        # characters = list(object_chars * self.num_objects + " " * (self.width * self.height - self.num_objects))
-        # random.shuffle(characters)
-        # layout = [characters[i:i + self.width] for i in range(0, self.width * self.height, self.width)]
-       # player_locations = [(1, 1), (self.width - 2, 1), (self.width - 2, self.height - 2), (1, self.height - 2)]
-        # for x, y in player_locations:
-        #     self.layout[y][x] = 'p'
-
-        # Place objects ('t', 'l', 'o', 'p') on the map
-        # for _ in range(self.num_objects):
-        #     x = random.randint(1, self.width - 2)
-        #     y = random.randint(1, self.height - 2)
-        #     self.layout[y][x] = random.choice(self.object_chars)
-
-        self.layout.append(["\n", "Salad", "\n"])
+        self.layout.append(["\n", "SimpleTomato", "\n"])
 
         lettuce_coordinates = [
             (5, 1),
