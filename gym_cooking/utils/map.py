@@ -1,12 +1,11 @@
 import random
 
 class Map:
-    def _init_(self, file_path, num_objects, arglist):
+    def __init__(self, file_path, num_objects, arglist):
         self.width, self.height = map(int, arglist.grid_size.split('x'))
         self.arglist = arglist
         self.num_objects = num_objects
         self.file_path = file_path
-        self.layout = None
         self.object_chars = "tlp-/*"
         self.layout = None
         self.population_size = 3
@@ -19,44 +18,109 @@ class Map:
         layout = [characters[i:i + self.width] for i in range(0, self.width * self.height, self.width)]
         return layout
 
-    def evaluate_fitness(self):
+    def evaluate_fitness(self, map):
         fitness_score = 0
+
         if self.type == 'r':
-            #fully random map
             fitness_score = self.calculate_random_fitness()
         elif self.type == 's':
-            #spread out map
             fitness_score = self.calculate_spread_fitness()
         elif self.type == 'a':
-            #all blocked map
             fitness_score = self.calculate_collab_optional_fitness()
         elif self.type == 't':
-            #trapped map
-            fitness_score = self.calculate_collab_fitness()
+            fitness_score = self.calculate_collab_fitness(map)
         else:
             print(f"Invalid grid type: {self.type}")
 
         return fitness_score
-    
-    def calculate_collab_fitness():
-            # Calculate fitness based on collaboration requirements in trapped map
+
+    def calculate_collab_fitness(self, map):
+        blocked_score = 0
+        rows, cols = self.height, self.width
+
+        def flood_fill(row, col, visited):
+            if row < 0 or row >= rows or col < 0 or col >= cols or visited[row][col] or map[row][col] != ' ':
+                return 0
+        
+            visited[row][col] = True
+        
+            count = 1
+            count += flood_fill(row + 1, col, visited)
+            count += flood_fill(row - 1, col, visited)
+            count += flood_fill(row, col + 1, visited)
+            count += flood_fill(row, col - 1, visited)
+            # count += flood_fill(row + 1, col + 1, visited)  # Diagonal movement
+            # count += flood_fill(row - 1, col - 1, visited)  # Diagonal movement
+        
+            return count
+
+        visited = [[False for _ in range(cols)] for _ in range(rows)]
+
+        def find_object_positions(layout):
+            object_positions = {obj: [] for obj in ['p', 't', 'l', '/', '*']}
+            for row_idx, row in enumerate(layout):
+                for col_idx, char in enumerate(row):
+                    if char in object_positions:
+                        object_positions[char].append((row_idx, col_idx))
+            return object_positions
+
+        def calculate_distance_score(object_positions):
+            distance_score = 0
+
+            # Define the weights for each distance
+            weight_t_to_slash = 0.3
+            weight_l_to_slash = 0.3
+            weight_slash_to_p = 0.4
+            weight_p_to_star = 0.3
+
+            # Calculate distances and update the distance score
+            if 't' in object_positions and '/' in object_positions:
+                for tomato_pos in object_positions['t']:
+                    for slash_pos in object_positions['/']:
+                        distance_t_to_slash = abs(tomato_pos[0] - slash_pos[0]) + abs(tomato_pos[1] - slash_pos[1])
+                        distance_score += weight_t_to_slash * distance_t_to_slash
+            
+            if 'l' in object_positions and '/' in object_positions:
+                for lettuce_pos in object_positions['l']:
+                    for slash_pos in object_positions['/']:
+                        distance_l_to_slash = abs(lettuce_pos[0] - slash_pos[0]) + abs(lettuce_pos[1] - slash_pos[1])
+                        distance_score += weight_l_to_slash * distance_l_to_slash
+            
+            if '/' in object_positions and 'p' in object_positions:
+                for slash_pos in object_positions['/']:
+                    for plate_pos in object_positions['p']:
+                        distance_slash_to_p = abs(slash_pos[0] - plate_pos[0]) + abs(slash_pos[1] - plate_pos[1])
+                        distance_score += weight_slash_to_p * distance_slash_to_p
+            
+                        if 't' in object_positions and 'l' in object_positions and '*' in object_positions:
+                            for delivery_pos in object_positions['*']:
+                                distance_p_to_star = abs(plate_pos[0] - delivery_pos[0]) + abs(plate_pos[1] - delivery_pos[1])
+                                distance_score += weight_p_to_star * distance_p_to_star
+
+            return distance_score
+        
+        object_positions = find_object_positions(map)
+        distance_score = calculate_distance_score(object_positions)
+        separated_regions = 0
         collaboration_score = 0
 
-        # Iterate through the map layout to identify collaboration opportunities
-        for y in range(self.height):
-            for x in range(self.width):
-                if self.layout[y][x] == '-':
-                    # Found a wall, check for collaboration opportunities on either side
-                    left_side = self.layout[y][:x]
-                    right_side = self.layout[y][x + 1:]
+        for row in range(rows):
+            for col in range(cols):
+                if not visited[row][col] and map[row][col] == ' ':
+                    # If an unvisited empty space is found, perform flood-fill from that position
+                    count = flood_fill(row, col, visited)
+                    if count > 0:
+                        separated_regions += 1
+        self.print_map(map)
+    
+        if separated_regions > 1:
+            separated_regions = 10
+        collaboration_score = separated_regions + distance_score
+        # print("Collaboration Fitness:", collaboration_score)
+        # print("separated regions:", separated_regions)
+        # print("dist Score:", distance_score)
+        return collaboration_score, blocked_score, distance_score  # Su
 
-                    # Check if there's a workstation (ingredient, slicing counter, etc.) on one side
-                    if any(obj in left_side for obj in ['t', 'l', 'p', '*']) and any(obj in right_side for obj in ['t', 'l', 'p', '*']):
-                        # Collaboration opportunity found, increase the collaboration score
-                        collaboration_score += 1
-
-        # You can adjust the scoring based on the importance of collaboration in your game
-        return collaboration_score
 
     def crossover(self, other_map):
         # Implement crossover operation between two maps
@@ -103,7 +167,7 @@ class Map:
         for generation in range(self.num_generations):
             # Evaluate fitness for each map in the population
             for map_instance in self.population:
-                map_instance.evaluate_fitness()
+                self.evaluate_fitness(map_instance)
 
             # Create the next generation
             self.population = self.evolve_population()
@@ -142,3 +206,7 @@ class Map:
             for row in self.layout:
                 f.write("".join(row) + '\n')
         print("file made")
+
+    def print_map(self, map):
+        for row in map:
+            print(''.join(row))
