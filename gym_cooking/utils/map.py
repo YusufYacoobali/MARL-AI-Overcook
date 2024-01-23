@@ -16,6 +16,7 @@ class BaseMap:
         self.num_generations = 3
         self.population = None
         self.region_starting_points = []
+        self.regions = []
         random.seed()
 
     def start(self):
@@ -23,8 +24,6 @@ class BaseMap:
         if map_type == 'r':
             map_instance = RandomMap(self.file_path, self.num_objects, self.arglist)
             map_instance.generate_map()
-            # self.generate_random_layout()
-            # self.place_players_and_objects()
         elif map_type == 's':
             map_instance = GroupedTasksMap(self.file_path, self.num_objects, self.arglist)
             map_instance.generate_map()
@@ -34,7 +33,6 @@ class BaseMap:
         elif map_type == 't':
             map_instance = MandatoryCollabMap(self.file_path, self.num_objects, self.arglist)
             map_instance.generate_map()
-            #fitness_score = self.calculate_collab_fitness(map)
         else:
             print(f"Invalid grid type: {self.type}")
 
@@ -199,14 +197,36 @@ class BaseMap:
 
 
     def place_players_and_objects(self):
+
+        visited = [[False for _ in range(self.width)] for _ in range(self.height)]
+        regions = []
+
+        for row in range(self.height):
+            for col in range(self.width):
+                if not visited[row][col] and self.layout[row][col] == ' ':
+                    _, region = self.getAllRegionCoordinates(row, col, visited, self.layout, [])
+                    if region:  # Ensure the region is not empty
+                        regions.append(region)            
+        print(regions)
+
+        player_object_coordinates = []
+        # Alternate between regions while selecting coordinates
+        i = 0
+        while len(player_object_coordinates) < 4:
+            region = regions[i % len(regions)]
+            selected_coordinates = random.sample(region, min(2, len(region)))
+            flipped_coordinates = [(col, row) for row, col in selected_coordinates]
+            player_object_coordinates.extend(flipped_coordinates)
+            i += 1
+
+        print("Chef coordinates")
+        print(player_object_coordinates)
+
+        new_order = [0, 2, 1, 3]  # Change the order as needed
+        player_object_coordinates = [player_object_coordinates[i] for i in new_order]
+        print("Chef coordinates:", player_object_coordinates)
+
         self.layout.append(["\n", "SimpleTomato", "\n"])
-
-        # chef_region1 = self.find_empty_coordinates("Region 1")
-        # chef_region2 = self.find_empty_coordinates("Region 2")
-        # chef2_region1 = self.find_empty_coordinates("Region 1")
-        # chef2_region2 = self.find_empty_coordinates("Region 2")
-
-        # chef_coordinates = chef_region1 + chef_region2 + chef2_region1 + chef2_region2
 
         rows, cols = self.width, self.height
         visited = [[False for _ in range(cols)] for _ in range(rows)]
@@ -223,16 +243,7 @@ class BaseMap:
 
         chef_coordinates = self.region_starting_points[:4]
 
-        for cor in chef_coordinates:
-            print(cor)
-        # chef_coordinates = [
-        #     (5, 1),
-        #     (4, 1),
-        #     (4, 4),
-        #     (2, 4)
-        # ]
-        #raise Exception("Sorry, no numbers below zero")
-        for x, y in chef_coordinates:
+        for x, y in player_object_coordinates:
             self.layout.append([str(x), " ", str(y)])
         # Write the generated layout to the specified file
         with open(self.file_path, 'w') as f:
@@ -289,18 +300,34 @@ class BaseMap:
         count += self.flood_fill(row, col + 1, visited, layout)
         count += self.flood_fill(row, col - 1, visited, layout)
         return count
+    
+    def getAllRegionCoordinates(self, row, col, visited, layout, current_region):
+        rows, cols = self.height, self.width
+        if row < 0 or row >= rows or col < 0 or col >= cols or visited[row][col] or layout[row][col] != ' ':
+            return 0, current_region  # Return 0 and the current_region list if the current position is out of bounds or not an empty space
 
+        visited[row][col] = True
+        current_region.append((row, col))  # Store the current coordinate in the list
+
+        # Recursively perform flood-fill in all directions
+        count = 1  # Initialize count to 1 for the current empty space
+        count += self.getAllRegionCoordinates(row + 1, col, visited, layout, current_region)[0]
+        count += self.getAllRegionCoordinates(row - 1, col, visited, layout, current_region)[0]
+        count += self.getAllRegionCoordinates(row, col + 1, visited, layout, current_region)[0]
+        count += self.getAllRegionCoordinates(row, col - 1, visited, layout, current_region)[0]
+
+        return count, current_region
 
 class MandatoryCollabMap(BaseMap):
 
-    def mutate(self, layout):
+    def mutate(self, layout, max_iterations=100):
         rows, cols = len(layout), len(layout[0])
         mutation_rate = 1  # Adjust this as needed
+        iterations = 0
 
         while True:
-            #print("in loop")
             # Apply mutation to the layout
-             # Choose two random points to create a line of separation
+            # Choose two random points to create a line of separation
             point1 = (random.randint(0, rows - 1), random.randint(0, cols - 1))
             point2 = (random.randint(0, rows - 1), random.randint(0, cols - 1))
 
@@ -313,11 +340,12 @@ class MandatoryCollabMap(BaseMap):
                         # Mutate the character at this position
                         new_character = random.choice(self.object_chars)
                         layout[i][j] = new_character
+
             layout = self.avoid_crowding(layout)
             # Check the number of separated regions
             visited = [[False for _ in range(cols)] for _ in range(rows)]
             separated_regions = 0
-           
+
             for row in range(rows):
                 for col in range(cols):
                     if not visited[row][col] and layout[row][col] == ' ':
@@ -325,19 +353,21 @@ class MandatoryCollabMap(BaseMap):
                         count = self.flood_fill(row, col, visited, layout)
                         if count > self.width:
                             separated_regions += 1
-            #print("stuck")
-            if separated_regions == 2 or separated_regions == 3:
-                break  # Exit the loop if the layout has exactly 2 separated regions
+
+            if separated_regions == 2 or separated_regions == 3 or iterations >= max_iterations:
+                break  # Exit the loop if the layout has exactly 2 separated regions or max iterations are reached
+            iterations += 1
 
         return layout
     
-    def avoid_crowding(self, layout, density_threshold=0.4):
+    def avoid_crowding(self, layout, density_threshold=0.4, max_iterations=100):
         rows, cols = len(layout), len(layout[0])
         empty_count = sum(row.count(' ') for row in layout)
         total_cells = rows * cols
         empty_density = empty_count / total_cells
+        iterations = 0
 
-        if empty_density < density_threshold:
+        while empty_density < density_threshold and iterations < max_iterations:
             # Flatten the layout to a 1D list
             flat_layout = [char for row in layout for char in row]
             # Calculate the number of cells to convert to empty
@@ -352,10 +382,13 @@ class MandatoryCollabMap(BaseMap):
 
             # Reshape the flat list back to a 2D layout
             layout = [flat_layout[i:i + cols] for i in range(0, total_cells, cols)]
-            # print("Less dense version")
-            # self.print_map(layout)
-        return layout
 
+            # Recalculate empty density
+            empty_count = sum(row.count(' ') for row in layout)
+            empty_density = empty_count / total_cells
+            iterations += 1
+
+        return layout
 
     def evaluate_fitness(self, map):
         blocked_score = 0
@@ -436,12 +469,12 @@ class MandatoryCollabMap(BaseMap):
     # that will have highest fitness value
 class OptionalCollabMap(BaseMap):
 
-    def mutate(self, layout):
+    def mutate(self, layout, max_iterations=100):
         rows, cols = len(layout), len(layout[0])
         mutation_rate = 0.001  # Adjust this as needed
+        iterations = 0
 
         while True:
-            #print("in loop")
             # Apply mutation to the layout
             for i in range(rows):
                 for j in range(cols):
@@ -462,9 +495,9 @@ class OptionalCollabMap(BaseMap):
                         count = self.flood_fill(row, col, visited, layout)
                         if count > (self.width):
                             separated_regions += 1
-
-            if separated_regions == 2 or separated_regions == 3:
-                break  # Exit the loop if the layout has exactly 2 separated regions
+            if separated_regions == 2 or separated_regions == 3 or iterations >= max_iterations:
+                break  # Exit the loop if the layout has exactly 2 separated regions or max iterations are reached
+            iterations += 1
 
         return layout
     
@@ -572,11 +605,9 @@ class OptionalCollabMap(BaseMap):
     # that will have highest fitness value
 class GroupedTasksMap(BaseMap):
 
-    def mutate(self, layout):
+    def mutate(self, layout, max_iterations = 40):
         rows, cols = len(layout), len(layout[0])
         mutation_rate = 0.001  # Adjust this as needed
-
-        max_iterations = 40  # Set a maximum number of iterations to avoid an infinite loop
 
         for _ in range(max_iterations):
             # Apply mutation to the layout
