@@ -20,7 +20,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser("Overcooked 2 argument parser")
 
     # Environment
-    parser.add_argument("--level", type=str, required=True)
+    #parser.add_argument("--level", type=str, required=True)
     parser.add_argument("--num-agents", type=int, required=True)
     parser.add_argument("--grid-size", type=str, required=True)
     parser.add_argument("--grid-type", type=str, required=True)
@@ -102,7 +102,7 @@ def main_loop(arglist):
 
     while not env.done():
         action_dict = {}
-
+        raise Exception("Sorry, no numbers below zero")
         for agent in real_agents:
             action = agent.select_action(obs=obs)
             action_dict[agent.name] = action
@@ -115,8 +115,6 @@ def main_loop(arglist):
 
         # Saving info
         bag.add_status(cur_time=info['t'], real_agents=real_agents)
-
-
     # Saving final information before saving pkl file
     bag.set_collisions(collisions=env.collisions)
     bag.set_termination(termination_info=env.termination_info,
