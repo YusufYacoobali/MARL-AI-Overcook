@@ -161,37 +161,20 @@ class BaseMap:
                 if non_empty_neighbor_positions:
                     new_i, new_j = random.choice(non_empty_neighbor_positions)
                     self.layout[new_i][new_j] = ' '
-
+                    
         dish = self.arglist.dish.lower()
-
         if dish == "salad":
-            # Check if 't' is present in the layout, if not, add it
-            if 't' not in {char for row in self.layout for char in row}:
-                self.add_ingredient('t')
-            # Check if 'l' is present in the layout, if not, add it
-            if 'l' not in {char for row in self.layout for char in row}:
-                self.add_ingredient('l')
+            self.add_ingredient('t') if 't' not in {char for row in self.layout for char in row} else None
+            self.add_ingredient('l') if 'l' not in {char for row in self.layout for char in row} else None
 
         elif dish == "simpletomato":
-            # Check if 't' is present in the layout, if not, add it
-            if 't' not in {char for row in self.layout for char in row}:
-                self.add_ingredient('t')
+            self.add_ingredient('t') if 't' not in {char for row in self.layout for char in row} else None
 
         elif dish == "simplelettuce":
-            # Check if 'l' is present in the layout, if not, add it
-            if 'l' not in {char for row in self.layout for char in row}:
-                self.add_ingredient('l')
+            self.add_ingredient('l') if 'l' not in {char for row in self.layout for char in row} else None
 
-        # Make sure there is at least 1 'p' and 1 '/' in the map, if not then add one
-        if 'p' not in {char for row in self.layout for char in row}:
-            # If 'p' doesn't exist, add it in a random position with '-'
-            i, j = random.choice([(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '-'])
-            self.layout[i][j] = 'p'
-
-        if '/' not in {char for row in self.layout for char in row}:
-            # If '/' doesn't exist, add it in a random position with '-'
-            i, j = random.choice([(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '-'])
-            self.layout[i][j] = '/'
+        self.add_ingredient('p') if 'p' not in {char for row in self.layout for char in row} else None
+        self.add_ingredient('/') if '/' not in {char for row in self.layout for char in row} else None
 
     def place_players_and_objects(self):
 
@@ -204,7 +187,16 @@ class BaseMap:
                     _, region = self.getAllRegionCoordinates(row, col, visited, self.layout, [])
                     if region:  # Ensure the region is not empty
                         regions.append(region)            
-        print(regions)
+        print("REGIONS", regions)
+
+        max_attempts, attempts = 10, 0
+        while not regions and attempts < max_attempts:
+            self.start()
+            attempts += 1
+        if not regions:
+            raise ValueError("Error: No valid spaces in the map after multiple attempts.")
+
+
         result = self.get_surrounding_counters(regions, self.layout)
         region_list_no_dash = [[coord for coord in region if coord != '-'] for region in result]
         print("ADJACENT VALUES: ", region_list_no_dash)
@@ -214,7 +206,7 @@ class BaseMap:
         # Get coordinates in different regions to get chefs into
         i = 0
         while len(player_object_coordinates) < 4:
-            region = regions[i % len(regions)]
+            region = None if len(regions) == 0 else regions[i % len(regions)]
             selected_coordinates = random.sample(region, min(2, len(region)))
             flipped_coordinates = [(col, row) for row, col in selected_coordinates]
             player_object_coordinates.extend(flipped_coordinates)
@@ -238,8 +230,15 @@ class BaseMap:
         print("file made")
 
     def add_ingredient(self, ingredient):
-        i, j = random.choice([(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '-'])
-        self.layout[i][j] = ingredient
+        valid_positions = [(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '-']
+
+        if not valid_positions:
+            valid_positions = [(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == ' ']
+
+        if valid_positions:
+            i, j = random.choice(valid_positions)
+            self.layout[i][j] = ingredient
+
 
     def print_map(self, map):
         for row in map:
