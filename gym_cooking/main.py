@@ -88,7 +88,7 @@ def main_loop(arglist):
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
     #map = generate_random_map('utils/levels/map.txt',1, arglist=arglist)
-    map = BaseMap(file_path='utils/levels/map.txt', num_objects=1, arglist=arglist)
+    map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)
     map.start()
     arglist.level = "map"
     env = gym.envs.make("gym_cooking:overcookedEnv-v0", arglist=arglist)

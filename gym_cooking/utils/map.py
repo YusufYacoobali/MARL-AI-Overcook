@@ -5,7 +5,14 @@ import random
 #genetic does
 
 class BaseMap:
-    def __init__(self, file_path, num_objects, arglist):
+    def __init__(self, file_path, arglist):
+        """
+        Initialize the BaseMap instance.
+
+        Parameters:
+        - file_path: Where to save the file.
+        - arglist: The arguments list.
+        """
         try:
             self.size = int(arglist.grid_size)
             if not 5 <= self.size <= 20:
@@ -13,62 +20,64 @@ class BaseMap:
         except ValueError:
             raise ValueError("Error: Invalid grid size. Please provide a valid number greater than 5 and less than 20.")
         self.arglist = arglist
-        self.num_objects = num_objects
         self.file_path = file_path
         self.object_chars = "tlp----/*"
         self.layout = None
-        self.population_size = 10
-        self.num_generations = 3
+        self.population_size = 20
+        self.num_generations = 13
         self.population = None
-        self.region_starting_points = []
-        self.regions = []
         random.seed()
 
     def start(self):
+        """
+        This is the first function to be called, it checks various input values and makes the correct map type
+        """
         dish = self.arglist.dish.lower()
         if dish not in ["simpletomato", "simplelettuce", "salad"]:
             raise ValueError("Error: Dish does not exist. Please choose from SimpleTomato, SimpleLettuce, or Salad.")
                 
         map_type = self.arglist.grid_type.lower()
         if map_type == 'r':
-            map_instance = RandomMap(self.file_path, self.num_objects, self.arglist)
+            map_instance = RandomMap(self.file_path, self.arglist)
             map_instance.generate_map()
         elif map_type == 's':
-            map_instance = GroupedTasksMap(self.file_path, self.num_objects, self.arglist)
+            map_instance = GroupedTasksMap(self.file_path, self.arglist)
             map_instance.generate_map()
         elif map_type == 'o':
-            map_instance = OptionalCollabMap(self.file_path, self.num_objects, self.arglist)
+            map_instance = OptionalCollabMap(self.file_path, self.arglist)
             map_instance.generate_map()
         elif map_type == 't':
-            map_instance = MandatoryCollabMap(self.file_path, self.num_objects, self.arglist)
+            map_instance = MandatoryCollabMap(self.file_path, self.arglist)
             map_instance.generate_map()
         else:
-            #print(f"Invalid grid type: {self.type}")
             raise ValueError("Error: Invalid map type. Please choose from t, o, s, r.")
 
-
     def generate_map(self):
+        """
+        Gets the final map which it processes and saves to be able to play the game
+        """
         self.genetic_algorithm()
         self.post_processing()
-        self.place_players_and_objects()
+        self.finish_file()
 
     def genetic_algorithm(self):
-        # Generate an initial population
+        """
+        This function is responsible for making the map through various other functions.
+        It creates the initial population, picks the best ones and evolves them over many generations.
+    #   Then it returns the best layout made.
+        """
         self.population = [self.generate_random_layout() for _ in range(self.population_size)]
         for generation in range(self.num_generations):
             selected_maps = self.select_maps_for_reproduction()
-            print("Maps selected:")
-            self.print_horizontal_maps([map_[0] for map_ in selected_maps])
-            # Create the next generation
             self.population = self.evolve_population(selected_maps)
-            print("NEW POPULATION: ")
-            self.print_horizontal_maps(self.population)
-        # Get the optimal map from the final generation
         self.layout = max(self.population, key=lambda x: self.evaluate_fitness(x))
         print("FINAL MAP: ")
         self.print_map(self.layout)
 
     def select_maps_for_reproduction(self):
+        """
+
+        """
         best_maps = [(map_instance, self.evaluate_fitness(map_instance)[0]) for map_instance in self.population]
         sorted_best_maps = sorted(best_maps, key=lambda x: x[1], reverse=True)
         # Select the top 1/3 of the best maps
@@ -77,6 +86,9 @@ class BaseMap:
         return selected_maps
     
     def evolve_population(self, selected_maps):
+        """
+        
+        """
         next_generation = []
         crossover_children = []
         mutated_children = []
@@ -101,12 +113,18 @@ class BaseMap:
         return next_generation
     
     def crossover(self, map1, map2):
+        """
+        
+        """
         # Perform crossover between two parents to create a child
         child_layout = [self.crossover_row(row1, row2) for row1, row2 in zip(map1, map2)]
         #print(random.randint(1,10))
         return child_layout
 
     def crossover_row(self, row1, row2):
+        """
+        
+        """
         # Select a random crossover point along the row length
         crossover_point = random.randint(1, min(len(row1), len(row2)) - 1)
         # Combine the left part of row1 and the right part of row2
@@ -114,18 +132,30 @@ class BaseMap:
         return child_row
 
     def generate_random_layout(self):
-        characters = list(self.object_chars * self.num_objects + " " * (self.size * self.size - self.num_objects))
+        """
+        
+        """
+        characters = list(self.object_chars + " " * (self.size * self.size-1))
         random.shuffle(characters)
         layout = [characters[i:i + self.size] for i in range(0, self.size * self.size, self.size)]
         return layout
     
     def mutate(self, layout):
+        """
+        
+        """
         pass
 
     def evaluate_fitness(self, map):
+        """
+        
+        """
         pass
 
     def find_empty_coordinates(self, region):
+        """
+        
+        """
         rows, cols = len(self.layout)-1, len(self.layout[0])
         empty_coordinates = []
         print (rows, cols)
@@ -139,6 +169,9 @@ class BaseMap:
         return empty_coordinates[:4]  # Return the first four empty coordinates
     
     def post_processing(self):
+        """
+        
+        """
         # Only leave 1 '*', change all others to '-'
         star_positions = [(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '*']
         
@@ -181,8 +214,10 @@ class BaseMap:
         self.add_ingredient('p') if 'p' not in {char for row in self.layout for char in row} else None
         self.add_ingredient('/') if '/' not in {char for row in self.layout for char in row} else None
 
-    def place_players_and_objects(self):
-
+    def finish_file(self):
+        """
+        
+        """
         visited = [[False for _ in range(self.size)] for _ in range(self.size)]
         regions = []
 
@@ -235,6 +270,9 @@ class BaseMap:
         print("file made")
 
     def add_ingredient(self, ingredient):
+        """
+        
+        """
         valid_positions = [(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '-']
 
         if not valid_positions:
@@ -246,10 +284,16 @@ class BaseMap:
 
 
     def print_map(self, map):
+        """
+        
+        """
         for row in map:
             print(''.join(row))
 
     def print_horizontal_maps(self, maps):
+        """
+        
+        """
         # Find the maximum number of rows in the maps
         max_rows = max(len(map_) for map_ in maps)
 
@@ -263,6 +307,9 @@ class BaseMap:
             print()
 
     def count_separated_regions(self, layout, visited):
+        """
+        
+        """
         rows, cols = self.size, self.size
         separated_regions = 0
 
@@ -297,6 +344,9 @@ class BaseMap:
     
     #gets all coordinates of the current region
     def getAllRegionCoordinates(self, row, col, visited, layout, current_region):
+        """
+        
+        """
         rows, cols = self.size, self.size
         if row < 0 or row >= rows or col < 0 or col >= cols or visited[row][col] or layout[row][col] != ' ':
             return 0, current_region  # Return 0 and the current_region list if the current position is out of bounds or not an empty space
@@ -314,6 +364,9 @@ class BaseMap:
         return count, current_region
     
     def get_surrounding_counters(self, regions, layout):
+        """
+        
+        """
         surrounding_counters = []
 
         for region in regions:
@@ -341,8 +394,14 @@ class BaseMap:
         return surrounding_counters
 
 class MandatoryCollabMap(BaseMap):
+    """
+        
+    """
 
     def mutate(self, layout, max_iterations=100):
+        """
+        
+        """
         rows, cols = len(layout), len(layout[0])
         mutation_rate = 0.01  # Adjust this as needed
         iterations = 0
@@ -383,6 +442,9 @@ class MandatoryCollabMap(BaseMap):
         return layout
     
     def avoid_crowding(self, layout, density_threshold=0.4, max_iterations=100):
+        """
+        
+        """
         rows, cols = len(layout), len(layout[0])
         empty_count = sum(row.count(' ') for row in layout)
         total_cells = rows * cols
@@ -414,20 +476,23 @@ class MandatoryCollabMap(BaseMap):
     
 
     def evaluate_fitness(self, map):
+        """
+        
+        """
         fitness = 1
         rows, cols = self.size, self.size
 
         def calculate_score(result):
+            """
+        
+            """
             unique_elements = set(element for lst in result for element in lst)
-            print("uniquesss", unique_elements)
-            # Initialize the score
             score = 0
 
             # Check if each unique element exists in any other list
             for unique_element in unique_elements:
                 count = sum(unique_element in lst for lst in result)
                 if count == 1:
-                    # If the unique element is found in exactly one sublist, add 10 to the score
                     score += 3
 
             return score
@@ -463,8 +528,14 @@ class MandatoryCollabMap(BaseMap):
         
 
 class OptionalCollabMap(BaseMap):
+    """
+        
+    """
 
     def mutate(self, layout, max_iterations=100):
+        """
+        
+        """
         rows, cols = len(layout), len(layout[0])
         mutation_rate = 0.001  # Adjust this as needed
         iterations = 0
@@ -497,6 +568,9 @@ class OptionalCollabMap(BaseMap):
         return layout
     
     def avoid_crowding(self, layout, density_threshold=0.5, max_iterations=100):
+        """
+        
+        """
         rows, cols = len(layout), len(layout[0])
         empty_count = sum(row.count(' ') for row in layout)
         total_cells = rows * cols
@@ -523,91 +597,50 @@ class OptionalCollabMap(BaseMap):
         return layout
     
     def evaluate_fitness(self, map):
-        print("Evaluating OPTIONAL")
-        blocked_score = 0
+        """
+        
+        """
+        fitness = 1
         rows, cols = self.size, self.size
+
+        def calculate_score(result):
+            """
+        
+            """
+            # Initialize the score
+            score = 0
+
+            # Check if each element is common to all lists
+            for element in result[0]:
+                if all(element in lst for lst in result[1:]):
+                    # If the element is present in all lists, add 10 to the score
+                    score += 10
+
+            return score
+
         visited = [[False for _ in range(cols)] for _ in range(rows)]
+        separated_regions = self.count_separated_regions(map, visited=visited)
 
-        def find_object_positions(layout):
-            object_positions = {obj: [] for obj in ['p', 't', 'l', '/', '*']}
-            for row_idx, row in enumerate(layout):
-                for col_idx, char in enumerate(row):
-                    if char in object_positions:
-                        object_positions[char].append((row_idx, col_idx))
-            return object_positions
-
-        def get_adjacent_values(row, col, visited, layout):
-            rows, cols = self.size, self.size
-            adjacent_values = set()
-
-            # Define the horizontal and vertical directions
-            directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
-
-            for direction in directions:
-                new_row, new_col = row + direction[0], col + direction[1]
-
-                # Check if the new position is within bounds
-                if 0 <= new_row < rows and 0 <= new_col < cols and not visited[new_row][new_col]:
-                    visited[new_row][new_col] = True
-                    value = layout[new_row][new_col]
-
-                    # Only consider non-empty values
-                    if value != ' ':
-                        adjacent_values.add(value)
-
-            return adjacent_values
-
-        def get_region_counters(region, layout):
-            visited = [[False for _ in range(cols)] for _ in range(rows)]
-            counters = []
-
-            for pos in region:
-                row, col = pos
-                adjacent_values = get_adjacent_values(row, col, visited, layout)
-                counters.extend(adjacent_values)
-
-            return counters
-
-        object_positions = find_object_positions(map)
-        separated_regions = 0
-        collaboration_score = 0
-
-        for row in range(rows):
-            for col in range(cols):
-                if not visited[row][col] and map[row][col] == ' ':
-                    # If an unvisited empty space is found, perform flood-fill from that position
-                    count = self.flood_fill(row, col, visited, map)
-                    if count > self.size:
-                        separated_regions += 1
-                        # Get counters for the adjacent values of each position in the region
-                        # region = [(r, c) for r in range(rows) for c in range(cols) if visited[r][c]]
-                        # counters = get_region_counters(region, map)
-                        #print("Region Counters:", counters)
         visited = [[False for _ in range(self.size)] for _ in range(self.size)]
-        regions = []
-
+        regions_cords = []
         for row in range(self.size):
             for col in range(self.size):
                 if not visited[row][col] and map[row][col] == ' ':
                     _, region = self.getAllRegionCoordinates(row, col, visited, map, [])
                     if region:  # Ensure the region is not empty
-                        regions.append(region)            
-        print("REGIONS FOR adjacent: " , regions)
+                        regions_cords.append(region)            
 
-        result = self.get_surrounding_counters(regions, map)
-        print("ADJACENT VALUES: ", result)
-        self.print_map(map)
-        print("--------")
+        result = self.get_surrounding_counters(regions_cords, map)
+        region_adjacents = [[coord for coord in region if coord != '-'] for region in result]
+        adjacent_score = calculate_score(result=region_adjacents)
+        
+        if separated_regions == 2:
+            fitness = fitness+30
+        elif separated_regions == 1 or separated_regions ==3:
+            fitness = fitness+2
 
-        if separated_regions != 2:
-            collaboration_score = 0
-        else:
-            collaboration_score += 2000
-        print("Collaboration Fitness:", collaboration_score)
-        print("Separated regions:", separated_regions)
-
-        return collaboration_score, separated_regions
-
+        fitness += adjacent_score
+        return fitness, separated_regions
 
 #tasks grouped together
     # random amount of regions
@@ -615,8 +648,14 @@ class OptionalCollabMap(BaseMap):
     # check both regions have p (plate), / (cutting), * (delivery), t or l or both (tomato lettuce)
     # that will have highest fitness value
 class GroupedTasksMap(BaseMap):
+    """
+        
+    """
 
     def mutate(self, layout, max_iterations = 40):
+        """
+        
+        """
         rows, cols = len(layout), len(layout[0])
         mutation_rate = 0.001  # Adjust this as needed
 
@@ -655,6 +694,9 @@ class GroupedTasksMap(BaseMap):
         return neighbors
     
     def avoid_crowding(self, layout, density_threshold=0.5, max_iterations=100):
+        """
+        
+        """
         rows, cols = len(layout), len(layout[0])
         empty_count = sum(row.count(' ') for row in layout)
         total_cells = rows * cols
@@ -681,6 +723,9 @@ class GroupedTasksMap(BaseMap):
         return layout
     
     def evaluate_fitness(self, map):
+        """
+        
+        """
         # Calculate the fitness score based on the number of counters and their distances
 
         # Sample implementation (you can customize this based on your needs)
@@ -724,11 +769,20 @@ class GroupedTasksMap(BaseMap):
     #mutate by random?
     #evaluate by no pattern somehow?
 class RandomMap(BaseMap):
+    """
+        
+    """
 
     def mutate(self, layout):
+        """
+        
+        """
         return layout
     
     def evaluate_fitness(self, map):
+        """
+        
+        """
         best_score = self.size * self.size * 0.5
         empty_spaces = sum(row.count(' ') for row in map)
         difference = abs(empty_spaces - best_score)
