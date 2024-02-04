@@ -263,9 +263,7 @@ class BaseMap:
             print()
 
     def count_separated_regions(self, layout, visited):
-        rows, cols = len(layout), len(layout[0])
-        print("rows", rows)
-        print("cols", cols)
+        rows, cols = self.size, self.size
         separated_regions = 0
 
         for row in range(rows):
@@ -273,7 +271,7 @@ class BaseMap:
                 if not visited[row][col] and layout[row][col] == ' ':
                     # If an unvisited empty space is found, perform flood-fill from that position
                     count = self.flood_fill(row, col, visited, layout)
-                    if count > self.size:
+                    if count > 0:
                         separated_regions += 1
 
         return separated_regions
@@ -283,11 +281,6 @@ class BaseMap:
         Perform a flood-fill from the given position and mark all directly connected empty spaces.
         """
         rows, cols = self.size, self.size
-        # print(f"Checking: row={row}, col={col}, rows={rows}, cols={cols}")
-        # #print(f"Visited: {visited[row][col]}")
-        # self.print_map(layout)
-        # print(f"Layout: {layout}")
-        # print(f"Layout: {layout[row][col]}")
 
         if row < 0 or row >= rows or col < 0 or col >= cols or visited[row][col] or layout[row][col] != ' ':
             return 0  # Return 0 if the current position is out of bounds or not an empty space
@@ -418,84 +411,57 @@ class MandatoryCollabMap(BaseMap):
             iterations += 1
 
         return layout
+    
 
     def evaluate_fitness(self, map):
-        blocked_score = 0
+        fitness = 1
         rows, cols = self.size, self.size
+
+        def calculate_score(result):
+            unique_elements = set(element for lst in result for element in lst)
+            print("uniquesss", unique_elements)
+            # Initialize the score
+            score = 0
+
+            # Check if each unique element exists in any other list
+            for unique_element in unique_elements:
+                count = sum(unique_element in lst for lst in result)
+                if count == 1:
+                    # If the unique element is found in exactly one sublist, add 10 to the score
+                    score += 3
+
+            return score
+
         visited = [[False for _ in range(cols)] for _ in range(rows)]
+        separated_regions = self.count_separated_regions(map, visited=visited)
 
-        def find_object_positions(layout):
-            object_positions = {obj: [] for obj in ['p', 't', 'l', '/', '*']}
-            for row_idx, row in enumerate(layout):
-                for col_idx, char in enumerate(row):
-                    if char in object_positions:
-                        object_positions[char].append((row_idx, col_idx))
-            return object_positions
-
-        def calculate_distance_score(object_positions):
-            distance_score = 0
-
-            # Define the weights for each distance
-            weight_t_to_slash = 0.3
-            weight_l_to_slash = 0.3
-            weight_slash_to_p = 0.4
-            weight_p_to_star = 0.3
-
-            # Calculate distances and update the distance score
-            if 't' in object_positions and '/' in object_positions:
-                for tomato_pos in object_positions['t']:
-                    for slash_pos in object_positions['/']:
-                        distance_t_to_slash = abs(tomato_pos[0] - slash_pos[0]) + abs(tomato_pos[1] - slash_pos[1])
-                        distance_score += weight_t_to_slash * distance_t_to_slash
-            
-            if 'l' in object_positions and '/' in object_positions:
-                for lettuce_pos in object_positions['l']:
-                    for slash_pos in object_positions['/']:
-                        distance_l_to_slash = abs(lettuce_pos[0] - slash_pos[0]) + abs(lettuce_pos[1] - slash_pos[1])
-                        distance_score += weight_l_to_slash * distance_l_to_slash
-            
-            if '/' in object_positions and 'p' in object_positions:
-                for slash_pos in object_positions['/']:
-                    for plate_pos in object_positions['p']:
-                        distance_slash_to_p = abs(slash_pos[0] - plate_pos[0]) + abs(slash_pos[1] - plate_pos[1])
-                        distance_score += weight_slash_to_p * distance_slash_to_p
-            
-                        if 't' in object_positions and 'l' in object_positions and '*' in object_positions:
-                            for delivery_pos in object_positions['*']:
-                                distance_p_to_star = abs(plate_pos[0] - delivery_pos[0]) + abs(plate_pos[1] - delivery_pos[1])
-                                distance_score += weight_p_to_star * distance_p_to_star
-
-            return distance_score
-        
-        object_positions = find_object_positions(map)
-        distance_score = calculate_distance_score(object_positions)
-        separated_regions = 0
-        collaboration_score = 0
-
-        for row in range(rows):
-            for col in range(cols):
+        visited = [[False for _ in range(self.size)] for _ in range(self.size)]
+        regions_cords = []
+        for row in range(self.size):
+            for col in range(self.size):
                 if not visited[row][col] and map[row][col] == ' ':
-                    # If an unvisited empty space is found, perform flood-fill from that position
-                    count = self.flood_fill(row, col, visited, map)
-                    if count > 0:
-                        separated_regions += 1
-        #self.print_map(map)
+                    _, region = self.getAllRegionCoordinates(row, col, visited, map, [])
+                    if region:  # Ensure the region is not empty
+                        regions_cords.append(region)            
+
+        result = self.get_surrounding_counters(regions_cords, map)
+        region_adjacents = [[coord for coord in region if coord != '-'] for region in result]
+        adjacent_score = calculate_score(result=region_adjacents)
+        # print("ADJACENT VALUES: ", region_adjacents)
+        # print("ADJACENT SCore: ", adjacent_score)
         
-        #print("separated regions:", separated_regions)
         if separated_regions == 2:
-            collaboration_score += distance_score*3
-        else:
-            collaboration_score == distance_score*0.5
-        print("Collaboration Fitness:", collaboration_score)
-        print("separated regions:", separated_regions)
-        # print("dist Score:", distance_score)
-        return collaboration_score, separated_regions # Su
+            fitness = fitness+20
+        elif separated_regions == 1 or separated_regions ==3:
+            fitness = fitness+2
+
+        fitness += adjacent_score
+        # print("Collaboration Fitness:", fitness)
+        # print("separated regions:", separated_regions)
+        # print("--------")
+        return fitness, separated_regions
         
 
-#must have all counters on each seperation 
-    # still need >1 regions
-    # check both regions have p (plate), / (cutting), * (delivery), t or l or both (tomato lettuce)
-    # that will have highest fitness value
 class OptionalCollabMap(BaseMap):
 
     def mutate(self, layout, max_iterations=100):
