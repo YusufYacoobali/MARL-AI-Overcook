@@ -20,7 +20,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser("Overcooked 2 argument parser")
 
     # Environment
-    #parser.add_argument("--level", type=str, required=True)
+    parser.add_argument("--dish", type=str, required=True)
     parser.add_argument("--num-agents", type=int, required=True)
     parser.add_argument("--grid-size", type=str, required=True)
     parser.add_argument("--grid-type", type=str, required=True)

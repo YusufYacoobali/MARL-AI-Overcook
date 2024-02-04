@@ -20,6 +20,10 @@ class BaseMap:
         random.seed()
 
     def start(self):
+        dish = self.arglist.dish.lower()
+        if dish not in ["simpletomato", "simplelettuce", "salad"]:
+            raise ValueError("Error: Dish does not exist. Please choose from SimpleTomato, SimpleLettuce, or Salad.")
+        
         map_type = self.arglist.grid_type.lower()
         if map_type == 'r':
             map_instance = RandomMap(self.file_path, self.num_objects, self.arglist)
@@ -34,7 +38,9 @@ class BaseMap:
             map_instance = MandatoryCollabMap(self.file_path, self.num_objects, self.arglist)
             map_instance.generate_map()
         else:
-            print(f"Invalid grid type: {self.type}")
+            #print(f"Invalid grid type: {self.type}")
+            raise ValueError("Error: Invalid map type. Please choose from t, o, s, r.")
+
 
     def generate_map(self):
         self.genetic_algorithm()
@@ -156,45 +162,36 @@ class BaseMap:
                     new_i, new_j = random.choice(non_empty_neighbor_positions)
                     self.layout[new_i][new_j] = ' '
 
-        # # If the recipe is a salad, make sure there is at least 1 'l' and 1 't'
-        # if self.recipe == 'salad':
-        #     # Check if there is at least 1 'l'
-        #     if all('l' not in row for row in self.layout):
-        #         # If not, add 'l' in a random position
-        #         i, j = random.choice([(i, j) for i in range(len(self.layout)) for j in range(len(self.layout[0]))])
-        #         self.layout[i][j] = 'l'
+        dish = self.arglist.dish.lower()
 
-        #     # Check if there is at least 1 't'
-        #     if all('t' not in row for row in self.layout):
-        #         # If not, add 't' in a random position
-        #         i, j = random.choice([(i, j) for i in range(len(self.layout)) for j in range(len(self.layout[0]))])
-        #         self.layout[i][j] = 't'
+        if dish == "salad":
+            # Check if 't' is present in the layout, if not, add it
+            if 't' not in {char for row in self.layout for char in row}:
+                self.add_ingredient('t')
+            # Check if 'l' is present in the layout, if not, add it
+            if 'l' not in {char for row in self.layout for char in row}:
+                self.add_ingredient('l')
 
-        # # If the recipe is 'simple tomato', make sure there is 1 't'
-        # elif self.recipe == 'simple_tomato':
-        #     # Check if there is at least 1 't'
-        #     if all('t' not in row for row in self.layout):
-        #         # If not, add 't' in a random position
-        #         i, j = random.choice([(i, j) for i in range(len(self.layout)) for j in range(len(self.layout[0]))])
-        #         self.layout[i][j] = 't'
+        elif dish == "simpletomato":
+            # Check if 't' is present in the layout, if not, add it
+            if 't' not in {char for row in self.layout for char in row}:
+                self.add_ingredient('t')
 
-        # # If the recipe is 'simple lettuce', make sure there is 1 'l'
-        # elif self.recipe == 'simple_lettuce':
-        #     # Check if there is at least 1 'l'
-        #     if all('l' not in row for row in self.layout):
-        #         # If not, add 'l' in a random position
-        #         i, j = random.choice([(i, j) for i in range(len(self.layout)) for j in range(len(self.layout[0]))])
-        #         self.layout[i][j] = 'l'
+        elif dish == "simplelettuce":
+            # Check if 'l' is present in the layout, if not, add it
+            if 'l' not in {char for row in self.layout for char in row}:
+                self.add_ingredient('l')
 
         # Make sure there is at least 1 'p' and 1 '/' in the map, if not then add one
-        if all(char not in ['p', '/'] for row in self.layout for char in row):
-            # If not, add 'p' and '/' in random positions
-            i, j = random.choice([(i, j) for i in range(len(self.layout)) for j in range(len(self.layout[0]))])
+        if 'p' not in {char for row in self.layout for char in row}:
+            # If 'p' doesn't exist, add it in a random position with '-'
+            i, j = random.choice([(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '-'])
             self.layout[i][j] = 'p'
 
-            i, j = random.choice([(i, j) for i in range(len(self.layout)) for j in range(len(self.layout[0]))])
+        if '/' not in {char for row in self.layout for char in row}:
+            # If '/' doesn't exist, add it in a random position with '-'
+            i, j = random.choice([(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '-'])
             self.layout[i][j] = '/'
-
 
     def place_players_and_objects(self):
 
@@ -213,7 +210,8 @@ class BaseMap:
         print("ADJACENT VALUES: ", region_list_no_dash)
 
         player_object_coordinates = []
-        # Alternate between regions while selecting coordinates
+        
+        # Get coordinates in different regions to get chefs into
         i = 0
         while len(player_object_coordinates) < 4:
             region = regions[i % len(regions)]
@@ -222,38 +220,26 @@ class BaseMap:
             player_object_coordinates.extend(flipped_coordinates)
             i += 1
 
-        print("Chef coordinates")
-        print(player_object_coordinates)
-
         new_order = [0, 2, 1, 3]  # Change the order as needed
         player_object_coordinates = [player_object_coordinates[i] for i in new_order]
         print("Chef coordinates:", player_object_coordinates)
 
-        self.layout.append(["\n", "SimpleTomato", "\n"])
+        #Add dish to file
+        self.layout.append(["\n", self.arglist.dish.capitalize(), "\n"])
 
-        rows, cols = self.width, self.height
-        visited = [[False for _ in range(cols)] for _ in range(rows)]
-
-        separated_regions = 0
-
-        for row in range(rows):
-            for col in range(cols):
-                if not visited[row][col] and self.layout[row][col] == ' ':
-                    count = self.flood_fill(row, col, visited, self.layout)
-                    if count > 0:
-                        if self.layout[row][col] == ' ':
-                            self.region_starting_points.append((row, col))
-
-        chef_coordinates = self.region_starting_points[:4]
-
+        #Add chef coordinates to file
         for x, y in player_object_coordinates:
             self.layout.append([str(x), " ", str(y)])
-        # Write the generated layout to the specified file
+
+        # Write the layout to the map file
         with open(self.file_path, 'w') as f:
             for row in self.layout:
                 f.write("".join(row) + '\n')
         print("file made")
-        #raise Exception("Sorry, no numbers below zero")
+
+    def add_ingredient(self, ingredient):
+        i, j = random.choice([(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '-'])
+        self.layout[i][j] = ingredient
 
     def print_map(self, map):
         for row in map:
@@ -274,6 +260,8 @@ class BaseMap:
 
     def count_separated_regions(self, layout, visited):
         rows, cols = len(layout), len(layout[0])
+        print("rows", rows)
+        print("cols", cols)
         separated_regions = 0
 
         for row in range(rows):
@@ -290,7 +278,13 @@ class BaseMap:
         """
         Perform a flood-fill from the given position and mark all directly connected empty spaces.
         """
-        rows, cols = self.height, self.width
+        rows, cols = self.width, self.height
+        # print(f"Checking: row={row}, col={col}, rows={rows}, cols={cols}")
+        # #print(f"Visited: {visited[row][col]}")
+        # self.print_map(layout)
+        # print(f"Layout: {layout}")
+        # print(f"Layout: {layout[row][col]}")
+
         if row < 0 or row >= rows or col < 0 or col >= cols or visited[row][col] or layout[row][col] != ' ':
             return 0  # Return 0 if the current position is out of bounds or not an empty space
 
@@ -306,7 +300,7 @@ class BaseMap:
     
     #gets all coordinates of the current region
     def getAllRegionCoordinates(self, row, col, visited, layout, current_region):
-        rows, cols = self.height, self.width
+        rows, cols = self.width, self.height
         if row < 0 or row >= rows or col < 0 or col >= cols or visited[row][col] or layout[row][col] != ' ':
             return 0, current_region  # Return 0 and the current_region list if the current position is out of bounds or not an empty space
 
@@ -353,7 +347,7 @@ class MandatoryCollabMap(BaseMap):
 
     def mutate(self, layout, max_iterations=100):
         rows, cols = len(layout), len(layout[0])
-        mutation_rate = 1  # Adjust this as needed
+        mutation_rate = 0.01  # Adjust this as needed
         iterations = 0
 
         while True:
@@ -423,7 +417,7 @@ class MandatoryCollabMap(BaseMap):
 
     def evaluate_fitness(self, map):
         blocked_score = 0
-        rows, cols = self.height, self.width
+        rows, cols = self.width, self.height
         visited = [[False for _ in range(cols)] for _ in range(rows)]
 
         def find_object_positions(layout):
@@ -561,7 +555,7 @@ class OptionalCollabMap(BaseMap):
     def evaluate_fitness(self, map):
         print("Evaluating OPTIONAL")
         blocked_score = 0
-        rows, cols = self.height, self.width
+        rows, cols = self.width, self.height
         visited = [[False for _ in range(cols)] for _ in range(rows)]
 
         def find_object_positions(layout):
