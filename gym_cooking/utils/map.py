@@ -6,7 +6,12 @@ import random
 
 class BaseMap:
     def __init__(self, file_path, num_objects, arglist):
-        self.width, self.height = map(int, arglist.grid_size.split('x'))
+        try:
+            self.size = int(arglist.grid_size)
+            if not 5 <= self.size <= 20:
+                raise ValueError("Error: Invalid grid size. Use a number greater than 5 and less than 20.")
+        except ValueError:
+            raise ValueError("Error: Invalid grid size. Please provide a valid number greater than 5 and less than 20.")
         self.arglist = arglist
         self.num_objects = num_objects
         self.file_path = file_path
@@ -23,7 +28,7 @@ class BaseMap:
         dish = self.arglist.dish.lower()
         if dish not in ["simpletomato", "simplelettuce", "salad"]:
             raise ValueError("Error: Dish does not exist. Please choose from SimpleTomato, SimpleLettuce, or Salad.")
-        
+                
         map_type = self.arglist.grid_type.lower()
         if map_type == 'r':
             map_instance = RandomMap(self.file_path, self.num_objects, self.arglist)
@@ -109,9 +114,9 @@ class BaseMap:
         return child_row
 
     def generate_random_layout(self):
-        characters = list(self.object_chars * self.num_objects + " " * (self.width * self.height - self.num_objects))
+        characters = list(self.object_chars * self.num_objects + " " * (self.size * self.size - self.num_objects))
         random.shuffle(characters)
-        layout = [characters[i:i + self.width] for i in range(0, self.width * self.height, self.width)]
+        layout = [characters[i:i + self.size] for i in range(0, self.size * self.size, self.size)]
         return layout
     
     def mutate(self, layout):
@@ -178,11 +183,11 @@ class BaseMap:
 
     def place_players_and_objects(self):
 
-        visited = [[False for _ in range(self.width)] for _ in range(self.height)]
+        visited = [[False for _ in range(self.size)] for _ in range(self.size)]
         regions = []
 
-        for row in range(self.height):
-            for col in range(self.width):
+        for row in range(self.size):
+            for col in range(self.size):
                 if not visited[row][col] and self.layout[row][col] == ' ':
                     _, region = self.getAllRegionCoordinates(row, col, visited, self.layout, [])
                     if region:  # Ensure the region is not empty
@@ -268,7 +273,7 @@ class BaseMap:
                 if not visited[row][col] and layout[row][col] == ' ':
                     # If an unvisited empty space is found, perform flood-fill from that position
                     count = self.flood_fill(row, col, visited, layout)
-                    if count > self.width:
+                    if count > self.size:
                         separated_regions += 1
 
         return separated_regions
@@ -277,7 +282,7 @@ class BaseMap:
         """
         Perform a flood-fill from the given position and mark all directly connected empty spaces.
         """
-        rows, cols = self.width, self.height
+        rows, cols = self.size, self.size
         # print(f"Checking: row={row}, col={col}, rows={rows}, cols={cols}")
         # #print(f"Visited: {visited[row][col]}")
         # self.print_map(layout)
@@ -299,7 +304,7 @@ class BaseMap:
     
     #gets all coordinates of the current region
     def getAllRegionCoordinates(self, row, col, visited, layout, current_region):
-        rows, cols = self.width, self.height
+        rows, cols = self.size, self.size
         if row < 0 or row >= rows or col < 0 or col >= cols or visited[row][col] or layout[row][col] != ' ':
             return 0, current_region  # Return 0 and the current_region list if the current position is out of bounds or not an empty space
 
@@ -375,7 +380,7 @@ class MandatoryCollabMap(BaseMap):
                     if not visited[row][col] and layout[row][col] == ' ':
                         # If an unvisited empty space is found, perform flood-fill from that position
                         count = self.flood_fill(row, col, visited, layout)
-                        if count > self.width:
+                        if count > self.size:
                             separated_regions += 1
 
             if separated_regions == 2 or separated_regions == 3 or iterations >= max_iterations:
@@ -416,7 +421,7 @@ class MandatoryCollabMap(BaseMap):
 
     def evaluate_fitness(self, map):
         blocked_score = 0
-        rows, cols = self.width, self.height
+        rows, cols = self.size, self.size
         visited = [[False for _ in range(cols)] for _ in range(rows)]
 
         def find_object_positions(layout):
@@ -517,7 +522,7 @@ class OptionalCollabMap(BaseMap):
                     if not visited[row][col] and layout[row][col] == ' ':
                         # If an unvisited empty space is found, perform flood-fill from that position
                         count = self.flood_fill(row, col, visited, layout)
-                        if count > (self.width):
+                        if count > (self.size):
                             separated_regions += 1
             if separated_regions == 2 or separated_regions == 3 or iterations >= max_iterations:
                 break  # Exit the loop if the layout has exactly 2 separated regions or max iterations are reached
@@ -554,7 +559,7 @@ class OptionalCollabMap(BaseMap):
     def evaluate_fitness(self, map):
         print("Evaluating OPTIONAL")
         blocked_score = 0
-        rows, cols = self.width, self.height
+        rows, cols = self.size, self.size
         visited = [[False for _ in range(cols)] for _ in range(rows)]
 
         def find_object_positions(layout):
@@ -566,7 +571,7 @@ class OptionalCollabMap(BaseMap):
             return object_positions
 
         def get_adjacent_values(row, col, visited, layout):
-            rows, cols = self.height, self.width
+            rows, cols = self.size, self.size
             adjacent_values = set()
 
             # Define the horizontal and vertical directions
@@ -606,17 +611,17 @@ class OptionalCollabMap(BaseMap):
                 if not visited[row][col] and map[row][col] == ' ':
                     # If an unvisited empty space is found, perform flood-fill from that position
                     count = self.flood_fill(row, col, visited, map)
-                    if count > self.width:
+                    if count > self.size:
                         separated_regions += 1
                         # Get counters for the adjacent values of each position in the region
                         # region = [(r, c) for r in range(rows) for c in range(cols) if visited[r][c]]
                         # counters = get_region_counters(region, map)
                         #print("Region Counters:", counters)
-        visited = [[False for _ in range(self.width)] for _ in range(self.height)]
+        visited = [[False for _ in range(self.size)] for _ in range(self.size)]
         regions = []
 
-        for row in range(self.height):
-            for col in range(self.width):
+        for row in range(self.size):
+            for col in range(self.size):
                 if not visited[row][col] and map[row][col] == ' ':
                     _, region = self.getAllRegionCoordinates(row, col, visited, map, [])
                     if region:  # Ensure the region is not empty
@@ -739,7 +744,7 @@ class GroupedTasksMap(BaseMap):
                 # Calculate average distance
                 average_distance = total_distance / (num_counters * (num_counters - 1))
                 # Normalize the average distance based on the map size
-                normalized_distance = average_distance / (self.width + self.height)
+                normalized_distance = average_distance / (self.size + self.size)
 
                 # Calculate score based on distance and number of counters
                 score = max(0, 10 - normalized_distance * 10)
@@ -758,7 +763,7 @@ class RandomMap(BaseMap):
         return layout
     
     def evaluate_fitness(self, map):
-        best_score = self.width * self.height * 0.5
+        best_score = self.size * self.size * 0.5
         empty_spaces = sum(row.count(' ') for row in map)
         difference = abs(empty_spaces - best_score)
         score = best_score - difference
