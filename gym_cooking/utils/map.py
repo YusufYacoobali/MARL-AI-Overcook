@@ -1,8 +1,4 @@
 import random
-#call start to generate map for each type
-#generate map does genetic, processing, final touches like recipe, place chefs
-
-#genetic does
 
 class BaseMap:
     def __init__(self, file_path, arglist):
