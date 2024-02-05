@@ -20,7 +20,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser("Overcooked 2 argument parser")
 
     # Environment
-    parser.add_argument("--level", type=str, required=True)
+    parser.add_argument("--dish", type=str, required=True)
     parser.add_argument("--num-agents", type=int, required=True)
     parser.add_argument("--grid-size", type=str, required=True)
     parser.add_argument("--grid-type", type=str, required=True)
@@ -87,8 +87,7 @@ def initialize_agents(arglist):
 def main_loop(arglist):
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
-    #map = generate_random_map('utils/levels/map.txt',1, arglist=arglist)
-    map = BaseMap(file_path='utils/levels/map.txt', num_objects=1, arglist=arglist)
+    map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)
     map.start()
     arglist.level = "map"
     env = gym.envs.make("gym_cooking:overcookedEnv-v0", arglist=arglist)
@@ -102,7 +101,7 @@ def main_loop(arglist):
 
     while not env.done():
         action_dict = {}
-
+        #raise Exception("Program stopped to observe new map made")
         for agent in real_agents:
             action = agent.select_action(obs=obs)
             action_dict[agent.name] = action
@@ -115,8 +114,6 @@ def main_loop(arglist):
 
         # Saving info
         bag.add_status(cur_time=info['t'], real_agents=real_agents)
-
-
     # Saving final information before saving pkl file
     bag.set_collisions(collisions=env.collisions)
     bag.set_termination(termination_info=env.termination_info,
