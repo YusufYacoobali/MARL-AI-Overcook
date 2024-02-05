@@ -87,7 +87,6 @@ def initialize_agents(arglist):
 def main_loop(arglist):
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
-    #map = generate_random_map('utils/levels/map.txt',1, arglist=arglist)
     map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)
     map.start()
     arglist.level = "map"
@@ -102,7 +101,7 @@ def main_loop(arglist):
 
     while not env.done():
         action_dict = {}
-        raise Exception("Sorry, no numbers below zero")
+        #raise Exception("Program stopped to observe new map made")
         for agent in real_agents:
             action = agent.select_action(obs=obs)
             action_dict[agent.name] = action
