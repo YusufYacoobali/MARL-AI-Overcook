@@ -429,7 +429,7 @@ class BaseMap:
                 else:
                     print(" " * len(map_[0]), end="     ")
             print()
-            
+
 
 class MandatoryCollabMap(BaseMap):
     """
@@ -666,6 +666,7 @@ class GroupedTasksMap(BaseMap):
                             new_character = max(char_counts, key=char_counts.get)
                             layout[i][j] = new_character
 
+            layout = self.avoid_crowding(layout)
             # Still apply randomness
             if random.random() < mutation_rate:
                 random.shuffle(layout)
