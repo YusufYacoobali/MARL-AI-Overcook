@@ -10,8 +10,8 @@ class BaseMap:
         Initialize the BaseMap instance.
 
         Parameters:
-        - file_path: Where to save the file.
-        - arglist: The arguments list.
+        file_path: Where to save the file.
+        arglist: The arguments list.
         """
         try:
             self.size = int(arglist.grid_size)
@@ -482,40 +482,6 @@ class MandatoryCollabMap(BaseMap):
                 break 
             iterations += 1
         return layout
-    
-    # def avoid_crowding(self, layout, density_threshold=0.6, max_iterations=100):
-    #     """
-    #     This method returns a less crowded map depending on the density_threshold
-
-    #     Parameters: 
-    #     layout - the map to check 
-    #     density_threshold - how empty the map should be. 1 being fully empty.
-    #     max_iterations - maximum number of iterations before breaking the while loop
-    #     Returns: layout - the new layout
-    #     """
-    #     rows, cols = self.size, self.size
-    #     empty_count = sum(row.count(' ') for row in layout)
-    #     total_cells = rows * cols
-    #     empty_density = empty_count / total_cells
-    #     iterations = 0
-
-    #     while empty_density < density_threshold and iterations < max_iterations:
-    #         # Flatten the layout to a 1D list
-    #         flat_layout = [char for row in layout for char in row]
-    #         cells_to_convert = int((1 - density_threshold) * total_cells)
-    #         non_empty_cells = [i for i, char in enumerate(flat_layout) if char != ' ']
-    #         cells_to_convert_indices = random.sample(non_empty_cells, cells_to_convert)
-    #         for index in cells_to_convert_indices:
-    #             flat_layout[index] = ' '
-
-    #         # Turn layout back to 2D
-    #         layout = [flat_layout[i:i + cols] for i in range(0, total_cells, cols)]
-
-    #         # check density again
-    #         empty_count = sum(row.count(' ') for row in layout)
-    #         empty_density = empty_count / total_cells
-    #         iterations += 1
-    #     return layout
 
     def evaluate_fitness(self, map):
         """
@@ -613,41 +579,6 @@ class OptionalCollabMap(BaseMap):
                 break  
             iterations += 1
         return layout
-    
-    # def avoid_crowding(self, layout, density_threshold=0.5, max_iterations=100):
-    #     """
-    #     This method returns a less crowded map depending on the density_threshold
-
-    #     Parameters: 
-    #     layout - the map to check 
-    #     density_threshold - how empty the map should be. 1 being fully empty.
-    #     max_iterations - maximum number of iterations before breaking the while loop
-    #     Returns: layout - the new layout
-    #     """
-    #     rows, cols = len(layout), len(layout[0])
-    #     empty_count = sum(row.count(' ') for row in layout)
-    #     total_cells = rows * cols
-    #     empty_density = empty_count / total_cells
-    #     iterations = 0
-
-    #     while empty_density < density_threshold and iterations < max_iterations:
-    #         #print("trying to reduce overcrowding")
-    #         # Find a non-empty cell and swap it with an empty cell
-    #         non_empty_cells = [(i, j) for i in range(rows) for j in range(cols) if layout[i][j] != ' ']
-    #         if non_empty_cells:
-    #             i, j = random.choice(non_empty_cells)
-    #             empty_cell = [(x, y) for x in range(rows) for y in range(cols) if layout[x][y] == ' ']
-    #             if empty_cell:
-    #                 x, y = random.choice(empty_cell)
-    #                 layout[i][j], layout[x][y] = layout[x][y], layout[i][j]
-
-    #         # Recalculate empty density
-    #         empty_count = sum(row.count(' ') for row in layout)
-    #         empty_density = empty_count / total_cells
-
-    #         iterations += 1
-
-    #     return layout
     
     def evaluate_fitness(self, map):
         """
@@ -756,37 +687,6 @@ class GroupedTasksMap(BaseMap):
                 if (i, j) != (row, col):
                     neighbors.append(layout[i][j])
         return neighbors
-    
-    # def avoid_crowding(self, layout, density_threshold=0.5, max_iterations=100):
-    #     """
-    #     This method returns a less crowded map depending on the density_threshold
-
-    #     Parameters: 
-    #     layout - the map to check 
-    #     density_threshold - how empty the map should be. 1 being fully empty.
-    #     max_iterations - maximum number of iterations before breaking the while loop
-    #     Returns: layout - the new layout
-    #     """
-    #     rows, cols = len(layout), len(layout[0])
-    #     empty_count = sum(row.count(' ') for row in layout)
-    #     total_cells = rows * cols
-    #     empty_density = empty_count / total_cells
-    #     iterations = 0
-
-    #     while empty_density < density_threshold and iterations < max_iterations:
-    #         non_empty_cells = [(i, j) for i in range(rows) for j in range(cols) if layout[i][j] != ' ']
-    #         if non_empty_cells:
-    #             i, j = random.choice(non_empty_cells)
-    #             empty_cell = [(x, y) for x in range(rows) for y in range(cols) if layout[x][y] == ' ']
-    #             if empty_cell:
-    #                 x, y = random.choice(empty_cell)
-    #                 layout[i][j], layout[x][y] = layout[x][y], layout[i][j]
-
-    #         # Recalculate new density
-    #         empty_count = sum(row.count(' ') for row in layout)
-    #         empty_density = empty_count / total_cells
-    #         iterations += 1
-    #     return layout
     
     def evaluate_fitness(self, map):
         """
