@@ -296,28 +296,6 @@ class BaseMap:
             i, j = random.choice(valid_positions)
             self.layout[i][j] = ingredient
 
-    def print_map(self, map):
-        """
-        Used for debugguing purposes
-        Parameters: map - the map to be printed
-        """
-        for row in map:
-            print(''.join(row))
-
-    def print_horizontal_maps(self, maps):
-        """
-        Used for debugguing purposes. It prints the entire population.
-        Parameters: maps - the maps to be printed
-        """
-        max_rows = max(len(map_) for map_ in maps)
-        for i in range(max_rows):
-            for map_ in maps:
-                if i < len(map_):
-                    print(''.join(map_[i]), end="     ")
-                else:
-                    print(" " * len(map_[0]), end="     ")
-            print()
-
     def count_separated_regions(self, layout, visited):
         """
         This function gets a map and returns the number of how many seperate regions there are.
@@ -430,6 +408,29 @@ class BaseMap:
             surrounding_counters.append(list(unique_counters))
         return surrounding_counters
 
+    def print_map(self, map):
+        """
+        Used for debugguing purposes
+        Parameters: map - the map to be printed
+        """
+        for row in map:
+            print(''.join(row))
+
+    def print_horizontal_maps(self, maps):
+        """
+        Used for debugguing purposes. It prints the entire population.
+        Parameters: maps - the maps to be printed
+        """
+        max_rows = max(len(map_) for map_ in maps)
+        for i in range(max_rows):
+            for map_ in maps:
+                if i < len(map_):
+                    print(''.join(map_[i]), end="     ")
+                else:
+                    print(" " * len(map_[0]), end="     ")
+            print()
+            
+
 class MandatoryCollabMap(BaseMap):
     """
     Subclass of BaseMap representing a map for mandatory collaboration.
@@ -536,6 +537,7 @@ class MandatoryCollabMap(BaseMap):
             fitness = fitness+2
         fitness += surrounding_score
         return fitness, separated_regions
+
 
 class OptionalCollabMap(BaseMap):
     """
@@ -736,7 +738,6 @@ class RandomMap(BaseMap):
     This class inherits from BaseMap and introduces additional functionality specific to maps
     where it needs to be random.
     """
-
     def mutate(self, layout):
         """
         No functionality here, randomness needs no mutation
