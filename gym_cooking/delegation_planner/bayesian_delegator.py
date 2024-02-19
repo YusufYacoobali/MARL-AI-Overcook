@@ -1,6 +1,6 @@
 import recipe_planner.utils as recipe
 from delegation_planner.delegator import Delegator
-from delegation_planner.utils import SubtaskAllocDistribution
+from delegation_planner.utils import SubtaskAllocDistribution, QNetwork, QLearningAgent
 from navigation_planner.utils import get_subtask_obj, get_subtask_action_obj, get_single_actions
 from utils.interact import interact
 from utils.utils import agent_settings
@@ -10,6 +10,11 @@ from itertools import permutations, product, combinations
 import scipy as sp
 import numpy as np
 import copy
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
 
 SubtaskAllocation = namedtuple("SubtaskAllocation", "subtask subtask_agent_names")
 
@@ -37,6 +42,8 @@ class BayesianDelegator(Delegator):
         self.priors = 'uniform' if model_type == 'up' else 'spatial'
         self.planner = planner
         self.none_action_prob = none_action_prob
+        #self.grid_size = grid_size
+        #self.cur_map = cur_map
 
     def should_reset_priors(self, obs, incomplete_subtasks):
         """Returns whether priors should be reset.
@@ -70,6 +77,8 @@ class BayesianDelegator(Delegator):
             probs = self.add_greedy_subtasks()
         elif self.model_type == "dc":
             probs = self.add_dc_subtasks()
+        elif self.model_type == "rl":
+            probs = self.add_rl_subtasks()
         else:
             probs = self.add_subtasks()
         return probs
@@ -401,6 +410,76 @@ class BayesianDelegator(Delegator):
             subtask_alloc = [SubtaskAllocation(subtask=p[i], subtask_agent_names=(self.all_agent_names[i],)) for i in range(len(self.all_agent_names))]
             subtask_allocs.append(subtask_alloc)
         return SubtaskAllocDistribution(subtask_allocs)
+    
+    def add_rl_subtasks(self):
+        #no need for state representation as we only need to focus on subtask allocation, navigation planner handles state
+        #just need to focus on giving it a subtask, running it, getting reward, saving it
+        #then choosing action with highest reward after all episodes have been run
+        RLAgents = []
+         # Training loop
+        num_episodes = 2
+        num_subtask_allocs = 5
+        # Define RL parameters
+        subtasks = self.incomplete_subtasks
+        print("SUBTASKS: " , subtasks)
+        print("AGENTS: ", self.all_agent_names)
+        print("model_type: ", self.model_type)
+        print("none_action_prob: ", self.none_action_prob)
+        print("priors: ", self.priors)
+        print("probs: ", self.probs)
+
+        for agent_name in self.all_agent_names:
+            agent = QLearningAgent(agent_name, subtasks)
+            RLAgents.append(agent)
+        
+        #raise Exception("Program stopped in rl subtask method")
+
+        # Loop over agents to choose actions
+        for episode in range(num_episodes):
+            print(f"Episode: {episode}")
+        # Reset environment for each episode if needed
+        # self.reset_environment()
+            # Loop over agents to choose actions
+            for agent in RLAgents:
+                print(f"Agent: {agent.agent_name}")
+                action = agent.choose_action() 
+
+                print("ACTION ", action)
+
+                # Assign subtask based on chosen action
+                subtask = subtasks[action]
+                print(f"Assigned subtask: {subtask} to Agent: {agent.agent_name}")
+
+                # Update the state based on the assigned subtask
+                # self.update_state(subtask, agent.name)
+
+                # Provide a reward (you need to define how rewards are calculated)
+                reward = self.calculate_reward(subtask)
+                print(f"Reward received: {reward}")
+
+
+        # Training completed, now generate subtask allocations based on learned policy
+        subtask_allocs = []
+
+        # for _ in range(num_subtask_allocs):
+        #     # Choose actions based on the learned policy
+        #     state = self.get_state_representation()
+        #     action = agent.choose_action(state)
+
+        #     # Assign subtask based on chosen action
+        #     subtask = self.incomplete_subtasks[action]
+        #     print(f"RL Agent chose action: {action}, assigning subtask: {subtask}")
+
+        #     # Create subtask allocation
+        #     subtask_alloc = [SubtaskAllocation(subtask=subtask, subtask_agent_names=(agent_name,)) for agent_name in self.all_agent_names]
+        #     subtask_allocs.append(subtask_alloc)
+        subtask_alloc1 = [SubtaskAllocation(subtask=subtasks[0], subtask_agent_names=(self.agent_name))]
+        subtask_alloc2 = [SubtaskAllocation(subtask=subtasks[3], subtask_agent_names=(self.all_agent_names[1]))]
+        subtask_allocs.append(subtask_alloc1)
+        subtask_allocs.append(subtask_alloc2)
+
+        return SubtaskAllocDistribution(subtask_allocs)
+
 
     def select_subtask(self, agent_name):
         """Return subtask and subtask_agent_names for agent with agent_name
@@ -466,3 +545,11 @@ class BayesianDelegator(Delegator):
                     factor=update)
             print("UPDATING: subtask_alloc {} by {}".format(subtask_alloc, update))
         self.probs.normalize()
+
+def print_map(map):
+        """
+        Used for debugguing purposes
+        Parameters: map - the map to be printed
+        """
+        for row in map:
+            print(''.join(row))
