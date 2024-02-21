@@ -84,7 +84,75 @@ def initialize_agents(arglist):
 
     return real_agents
 
+
+# def main_loop(arglist):
+#     """The main loop for running experiments."""
+#     print("Initializing environment and agents.")
+#     map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)
+#     map.start()
+#     arglist.level = "map"
+#     env = gym.envs.make("gym_cooking:overcookedEnv-v0", arglist=arglist)
+#     obs = env.reset()
+#     #game = GameVisualize(env)
+#     real_agents = initialize_agents(arglist=arglist)
+
+#     # Training loop
+#     num_episodes = 2
+#     for episode in range(num_episodes):
+#         print(f"Training Episode: {episode + 1}")
+#         bag = Bag(arglist=arglist, filename=env.filename)
+#         bag.set_recipe(recipe_subtasks=env.all_subtasks)
+#         bag.add_status(cur_time=info['t'], real_agents=real_agents)
+#         while not env.done():
+#             obs = env.reset()
+#             action_dict = {}
+#             for agent in real_agents:
+#                 action = agent.select_action(obs=obs)
+#                 action_dict[agent.name] = action
+
+#             obs, reward, done, info = env.step(action_dict=action_dict)
+
+#             # Agents
+#             for agent in real_agents:
+#                 agent.refresh_subtasks(world=env.world)
+
+#         # End of episode, perform training updates for the agents
+#         for agent in real_agents:
+#             agent.train()
+
+#         # Reset environment for next episode
+#         obs = env.reset()
+
+#     # Final evaluation with optimized agents
+#     print("Final Evaluation with Optimized Agents")
+#     bag = Bag(arglist=arglist, filename=env.filename)
+#     bag.set_recipe(recipe_subtasks=env.all_subtasks)
+#     bag.add_status(cur_time=info['t'], real_agents=real_agents)
+
+#     while not env.done():
+#         action_dict = {}
+#         for agent in real_agents:
+#             action = agent.select_action(obs=obs)
+#             action_dict[agent.name] = action
+
+#         obs, reward, done, info = env.step(action_dict=action_dict)
+
+#         # Agents
+#         for agent in real_agents:
+#             agent.refresh_subtasks(world=env.world)
+
+#     # Saving final information before saving pkl file
+#     bag.set_collisions(collisions=env.collisions)
+#     bag.set_termination(termination_info=env.termination_info,
+#                         successful=env.successful)
+
+def check_parameters(arglist):
+    pass
+    
+
 def main_loop(arglist):
+
+    check_parameters(arglist)
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
     map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)
@@ -99,9 +167,53 @@ def main_loop(arglist):
     bag = Bag(arglist=arglist, filename=env.filename)
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
 
+      # RL Training parameters
+    num_episodes = 2  # Number of training episodes
+    max_steps_per_episode = int(arglist.grid_size) # Maximum number of steps per episode
+    
+    for episode in range(num_episodes):
+        print(f"Starting episode {episode}")
+        obs = env.reset()  # Reset the environment for a new episode
+        #episode_reward = 0  # Accumulator for the episode reward
+        #if episode == 1:
+            #episode_reward = 100
+            
+        for step in range(max_steps_per_episode):
+            action_dict = {}
+            for agent in real_agents:
+                action = agent.select_action(obs=obs)
+                action_dict[agent.name] = action
+            print(f"Agent {agent.name} selects action {action}")
+            # Take one step in the environment
+            obs, reward, done, info = env.step(action_dict=action_dict)
+            #episode_reward += reward
+            print(f"Step {step}: Reward = {reward}, Done = {done}")
+            
+            if done:
+                print("Episode finished early.")
+                break
+
+            for agent in real_agents:
+                agent.refresh_subtasks(world=env.world)
+        
+        # RL Training after the episode
+        print(f"Training agents after episode {episode}")
+        # for agent in real_agents:
+        #     agent.train(obs, action_dict[agent.name], reward, obs, done)
+    
+
+        # Info bag for saving pkl files
+    bag = Bag(arglist=arglist, filename=env.filename)
+    bag.set_recipe(recipe_subtasks=env.all_subtasks)
+
+    for agent in real_agents:
+        for t in agent.good_tasks:
+            print("GOOD TASK FOUND for agent", agent.name)
+            print(t)
+    raise Exception("Program stopped to observe new map made")
+
     while not env.done():
         action_dict = {}
-        #raise Exception("Program stopped to observe new map made")
         for agent in real_agents:
             action = agent.select_action(obs=obs)
             action_dict[agent.name] = action
@@ -118,6 +230,43 @@ def main_loop(arglist):
     bag.set_collisions(collisions=env.collisions)
     bag.set_termination(termination_info=env.termination_info,
             successful=env.successful)
+
+
+
+# def main_loop(arglist):
+#     """The main loop for running experiments."""
+#     print("Initializing environment and agents.")
+#     map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)
+#     map.start()
+#     arglist.level = "map"
+#     env = gym.envs.make("gym_cooking:overcookedEnv-v0", arglist=arglist)
+#     obs = env.reset()
+#     #game = GameVisualize(env)
+#     real_agents = initialize_agents(arglist=arglist)
+
+#     # Info bag for saving pkl files
+#     bag = Bag(arglist=arglist, filename=env.filename)
+#     bag.set_recipe(recipe_subtasks=env.all_subtasks)
+
+#     while not env.done():
+#         action_dict = {}
+#         #raise Exception("Program stopped to observe new map made")
+#         for agent in real_agents:
+#             action = agent.select_action(obs=obs)
+#             action_dict[agent.name] = action
+
+#         obs, reward, done, info = env.step(action_dict=action_dict)
+
+#         # Agents
+#         for agent in real_agents:
+#             agent.refresh_subtasks(world=env.world)
+
+#         # Saving info
+#         bag.add_status(cur_time=info['t'], real_agents=real_agents)
+#     # Saving final information before saving pkl file
+#     bag.set_collisions(collisions=env.collisions)
+#     bag.set_termination(termination_info=env.termination_info,
+#             successful=env.successful)
 
 if __name__ == '__main__':
     arglist = parse_arguments()

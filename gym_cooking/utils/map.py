@@ -265,8 +265,16 @@ class BaseMap:
         new_order = [0, 2, 1, 3]  # Change the order as needed
         player_object_coordinates = [player_object_coordinates[i] for i in new_order]
 
-        #Add dish to file
-        self.layout.append(["\n", self.arglist.dish.capitalize(), "\n"])
+       # Check if the dish is "simpletomato" or "simplelettuce"
+        if self.arglist.dish.lower() == "simpletomato":
+            dish_name = "SimpleTomato"
+        elif self.arglist.dish.lower() == "simplelettuce":
+            dish_name = "SimpleLettuce"
+        else:
+            dish_name = self.arglist.dish.capitalize()
+
+        # Add dish to file 
+        self.layout.append(["\n", dish_name, "\n"])
 
         #Add chef coordinates to file
         for x, y in player_object_coordinates:
@@ -753,7 +761,7 @@ class RandomMap(BaseMap):
         fitness - total fitness value of the map
         separated_regions - how many seperate regions there are
         """
-        best_score = self.size * self.size * 0.5
+        best_score = self.size * self.size * 0.3
         empty_spaces = sum(row.count(' ') for row in map)
         difference = abs(empty_spaces - best_score)
         score = best_score - difference
