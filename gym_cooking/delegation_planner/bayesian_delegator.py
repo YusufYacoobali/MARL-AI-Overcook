@@ -77,8 +77,8 @@ class BayesianDelegator(Delegator):
             probs = self.add_greedy_subtasks()
         elif self.model_type == "dc":
             probs = self.add_dc_subtasks()
-        elif self.model_type == "rl":
-            probs = self.add_rl_subtasks()
+        # elif self.model_type == "rl":
+        #     probs = self.add_rl_subtasks()
         else:
             probs = self.add_subtasks()
         return probs

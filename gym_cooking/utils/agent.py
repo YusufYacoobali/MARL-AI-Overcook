@@ -339,9 +339,9 @@ class QLearningAgent:
         
         # Q-learning parameters
         self.q_values = np.zeros((num_actions,))
-        self.learning_rate = arglist.learning_rate
-        self.discount_factor = arglist.discount_factor
-        self.epsilon = arglist.epsilon
+        self.learning_rate = 0.1  
+        self.discount_factor = 0.9  
+        self.epsilon = 0.1
 
            # Bayesian Delegation.
         self.reset_subtasks()
@@ -382,13 +382,32 @@ class QLearningAgent:
             self.action = np.argmax(self.q_values)
         return self.action
     
-    def update_q_values(self, action, reward):
-        """Update Q-values based on observed reward."""
+    def select_action(self, obs, episode):
+        """Return best next action for this agent given observations."""
+        sim_agent = list(filter(lambda x: x.name == self.name, obs.sim_agents))[0]
+        self.location = sim_agent.location
+        self.holding = sim_agent.holding
+        self.action = sim_agent.action
+
+        if obs.t == 0:
+            self.setup_subtasks(env=obs, episode=episode)
+
+        # Select subtask based on Bayesian Delegation.
+        self.update_subtasks(env=obs)
+        #print(self.subtask)
+        self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
+                agent_name=self.name)
+        self.plan(copy.copy(obs))
+        return self.action
+    
+    def update_q_values(self, reward):
+        """Update Q-value for the given subtask based on observed reward."""
         # Update Q-value using Q-learning update rule
-        max_q_value_next = np.max(self.q_values)
-        td_target = reward + self.discount_factor * max_q_value_next
-        td_error = td_target - self.q_values[action]
-        self.q_values[action] += self.learning_rate * td_error
+        print("AGENT ", self.name)
+        print("subtask GIVEN and updating, new q values of ",self.subtask)
+        self.q_values[self.subtask] += self.learning_rate * (reward - self.q_values[self.subtask])
+        for subtask, q_value in self.q_values.items():
+            print(f"Subtask: {subtask}, Q-value: {q_value}")
 
     def __copy__(self):
         a = Agent(arglist=self.arglist,
@@ -409,23 +428,6 @@ class QLearningAgent:
             return 'None'
         return self.holding.full_name
 
-    # def select_action(self, obs):
-    #     """Return best next action for this agent given observations."""
-    #     sim_agent = list(filter(lambda x: x.name == self.name, obs.sim_agents))[0]
-    #     self.location = sim_agent.location
-    #     self.holding = sim_agent.holding
-    #     self.action = sim_agent.action
-
-    #     if obs.t == 0:
-    #         self.setup_subtasks(env=obs)
-
-    #     # Select subtask based on Bayesian Delegation.
-    #     self.update_subtasks(env=obs)
-    #     self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
-    #             agent_name=self.name)
-    #     self.plan(copy.copy(obs))
-    #     return self.action
-
     def get_subtasks(self, world):
         """Return different subtask permutations for recipes."""
         self.sw = STRIPSWorld(world, self.recipes)
@@ -439,9 +441,33 @@ class QLearningAgent:
         # ag = recipe_utils.make_action_graph(self.sw.initial, recipe_paths[i])
         return all_subtasks
 
-    def setup_subtasks(self, env):
+    # def setup_subtasks(self, env):
+    #     """Initializing subtasks and subtask allocator, Bayesian Delegation."""
+    #     self.incomplete_subtasks = self.get_subtasks(world=env.world)
+    #     for t in self.incomplete_subtasks:
+    #         print("AGENt TASKS " ,t)
+    #     self.delegator = BayesianDelegator(
+    #             agent_name=self.name,
+    #             all_agent_names=env.get_agent_names(),
+    #             model_type=self.model_type,
+    #             planner=self.planner,
+    #             none_action_prob=self.none_action_prob)
+
+    def setup_subtasks(self, env, episode):
         """Initializing subtasks and subtask allocator, Bayesian Delegation."""
         self.incomplete_subtasks = self.get_subtasks(world=env.world)
+        #self.q_values = np.zeros((len(self.incomplete_subtasks),))  # Initialize Q-values for each subtask
+        if episode == 0:
+            self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
+
+        print("AGENT ", self.name)
+        print("setting up Q-table:")
+        for subtask, q_value in self.q_values.items():
+            print(f"Subtask: {subtask}, Q-value: {q_value}")
+        # Print the Q-table
+        
+        for t in self.incomplete_subtasks:
+            print("AGENT TASKS ", t)
         self.delegator = BayesianDelegator(
                 agent_name=self.name,
                 all_agent_names=env.get_agent_names(),
@@ -449,13 +475,15 @@ class QLearningAgent:
                 planner=self.planner,
                 none_action_prob=self.none_action_prob)
 
+
     def reset_subtasks(self):
         """Reset subtasks---relevant for Bayesian Delegation."""
         self.subtask = None
         self.subtask_agent_names = []
         self.subtask_complete = False
+        #self.q_values = {subtask: 0.0 for subtask in self.num_actions}
 
-    def refresh_subtasks(self, world):
+    def refresh_subtasks(self, world, reward):
         """Refresh subtasks---relevant for Bayesian Delegation."""
         # Check whether subtask is complete.
         self.subtask_complete = False
@@ -473,6 +501,14 @@ class QLearningAgent:
             print("TASK COMPLETED AND ADDED TO GOOD TASKS", self.subtask)
             print("------------------------\n-----------------")
             self.good_tasks.append(self.subtask)
+            self.update_q_values( reward)
+
+        print("AGENT ", self.name)
+        print("Q-table inside refreshing subtasks:")
+        for subtask, q_value in self.q_values.items():
+            print(f"Subtask: {subtask}, Q-value: {q_value}")
+        # for i, task in enumerate(self.incomplete_subtasks):
+        #     print(f"Subtask: {task}, Q-values: {self.q_values[i]}")
 
         # Refresh for incomplete subtasks.
         if self.subtask_complete:
