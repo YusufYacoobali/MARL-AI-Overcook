@@ -158,7 +158,7 @@ class E2E_BRTDP:
         counter = 0
         start_repr = self.start.get_repr()
         diff = self.v_u[(start_repr, self.subtask)] - self.v_l[(start_repr, self.subtask)]
-        print("DIFF AT START: {}".format(diff))
+        #print("DIFF AT START: {}".format(diff))
 
         while True:
             counter += 1
@@ -206,7 +206,7 @@ class E2E_BRTDP:
             self.repr_init(env_state=x)
             self.value_init(env_state=x)
 
-        print("RUN SAMPLE EXPLORED {} STATES, took {}".format(len(traj), time.time()-start_time))
+        #print("RUN SAMPLE EXPLORED {} STATES, took {}".format(len(traj), time.time()-start_time))
         while not(traj.empty()):
             x = traj.pop()
             x_repr = x.get_repr()
@@ -227,7 +227,7 @@ class E2E_BRTDP:
 
         # Run until convergence or until you max out on iteration
         while (diff > self.alpha) and (main_counter < self.main_cap):
-            print('\nstarting main loop #', main_counter)
+            #print('starting main loop #', main_counter)
             new_upper = self.v_u[(start_repr, self.subtask)]
             new_lower = self.v_l[(start_repr, self.subtask)]
             new_diff = new_upper - new_lower
@@ -235,13 +235,13 @@ class E2E_BRTDP:
                 self.start.update_display()
                 self.start.display()
                 self.start.print_agents()
-                print('old: upper {}, lower {}'.format(upper, lower))
-                print('new: upper {}, lower {}'.format(new_upper, new_lower))
+                #print('old: upper {}, lower {}'.format(upper, lower))
+                #print('new: upper {}, lower {}'.format(new_upper, new_lower))
             diff = new_diff
             upper = new_upper
             lower = new_lower
             main_counter +=1
-            print('diff = {}, self.alpha = {}'.format(diff, self.alpha))
+            #print('diff = {}, self.alpha = {}'.format(diff, self.alpha))
             self.runSampleTrial()
 
     def _configure_planner_level(self, env, subtask_agent_names, other_agent_planners):
@@ -328,7 +328,7 @@ class E2E_BRTDP:
 
     def _configure_planner_space(self, subtask_agent_names):
         """Configure planner to either plan in joint space or single-agent space."""
-        assert len(subtask_agent_names) <= 2, "Cannot have more than 2 agents! Hm... {}".format(subtask_agents)
+        assert len(subtask_agent_names) <= 2, "Cannot have more than 2 agents! Hm... {}".format(subtask_agent_names)
 
         self.is_joint = len(subtask_agent_names) == 2
 
@@ -559,6 +559,8 @@ class E2E_BRTDP:
             return None
         else:
             actions = self.get_actions(state_repr=cur_state.get_repr())
+            # print("ALL ACTIONS \n\n\n\n\n ", actions)
+            # raise Exception("Program stopped to observe new map made")
             qvals = [self.Q(state=cur_state, action=a, value_f=self.v_l)
                     for a in actions]
             print([x for x in zip(actions, qvals)])

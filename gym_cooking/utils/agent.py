@@ -368,19 +368,10 @@ class QLearningAgent:
         )
         
         self.good_tasks = []
+        self.in_training = True
         
     def __str__(self):
         return color(self.name[-1], self.color)
-    
-    def select_action(self, obs):
-        """Return action for this agent given observations."""
-        if np.random.rand() < self.epsilon:
-            # Explore: select random action
-            self.action = np.random.choice(self.num_actions)
-        else:
-            # Exploit: select action with highest Q-value
-            self.action = np.argmax(self.q_values)
-        return self.action
     
     def select_action(self, obs, episode):
         """Return best next action for this agent given observations."""
@@ -388,16 +379,45 @@ class QLearningAgent:
         self.location = sim_agent.location
         self.holding = sim_agent.holding
         self.action = sim_agent.action
+        print("ACTION CURRENT", self.action)
 
         if obs.t == 0:
             self.setup_subtasks(env=obs, episode=episode)
 
         # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
-        #print(self.subtask)
-        self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
-                agent_name=self.name)
+
+        print("AGENT TRAINING STATUS ", self.in_training)
+        if self.in_training:
+            self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
+                    agent_name=self.name)
+        else: 
+            for subtask, q_value in self.q_values.items():
+                print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
+
+            max_q_value = float('-inf')
+            self.new_subtask = None
+            for subtask, q_value in self.q_values.items():
+                if q_value > max_q_value:
+                    max_q_value = q_value
+                    self.new_subtask = subtask
+            print(f"Chosen action: {self.new_subtask}")
+            self.new_subtask_agent_names = [self.name]
+
+                        # Remove the selected subtask from the Q-table
+            if self.new_subtask is not None:
+                del self.q_values[self.new_subtask]
+
+        print("new subtask ", self.new_subtask)
+        print("agrnt name", self.new_subtask_agent_names)
+        #raise Exception("Program stopped to observe new map made")
+        #planning is to do with how to do subtask, dont need to touch
+        # need to give delegator select subtask the list of q table or select here manually
+        # action is where to move next i think
         self.plan(copy.copy(obs))
+        print("new subtask ", self.new_subtask)
+        print("ACTION CURRENT", self.action)
+        #raise Exception("Program stopped to observe new map made")
         return self.action
     
     def update_q_values(self, reward):
@@ -441,23 +461,11 @@ class QLearningAgent:
         # ag = recipe_utils.make_action_graph(self.sw.initial, recipe_paths[i])
         return all_subtasks
 
-    # def setup_subtasks(self, env):
-    #     """Initializing subtasks and subtask allocator, Bayesian Delegation."""
-    #     self.incomplete_subtasks = self.get_subtasks(world=env.world)
-    #     for t in self.incomplete_subtasks:
-    #         print("AGENt TASKS " ,t)
-    #     self.delegator = BayesianDelegator(
-    #             agent_name=self.name,
-    #             all_agent_names=env.get_agent_names(),
-    #             model_type=self.model_type,
-    #             planner=self.planner,
-    #             none_action_prob=self.none_action_prob)
-
     def setup_subtasks(self, env, episode):
         """Initializing subtasks and subtask allocator, Bayesian Delegation."""
         self.incomplete_subtasks = self.get_subtasks(world=env.world)
         #self.q_values = np.zeros((len(self.incomplete_subtasks),))  # Initialize Q-values for each subtask
-        if episode == 0:
+        if episode == 0 and self.in_training == True:
             self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
 
         print("AGENT ", self.name)
@@ -466,15 +474,12 @@ class QLearningAgent:
             print(f"Subtask: {subtask}, Q-value: {q_value}")
         # Print the Q-table
         
-        for t in self.incomplete_subtasks:
-            print("AGENT TASKS ", t)
         self.delegator = BayesianDelegator(
                 agent_name=self.name,
                 all_agent_names=env.get_agent_names(),
                 model_type=self.model_type,
                 planner=self.planner,
                 none_action_prob=self.none_action_prob)
-
 
     def reset_subtasks(self):
         """Reset subtasks---relevant for Bayesian Delegation."""
@@ -496,7 +501,7 @@ class QLearningAgent:
             self.subtask, self.is_subtask_complete(world),
             self.planner.subtask, self.planner.goal_obj))
         
-        if self.is_subtask_complete(world):
+        if self.is_subtask_complete(world) and self.in_training == True:
             print("------------------------\n-----------------")
             print("TASK COMPLETED AND ADDED TO GOOD TASKS", self.subtask)
             print("------------------------\n-----------------")
@@ -626,48 +631,3 @@ class QLearningAgent:
             self.cur_obj_count = len(env.world.get_all_object_locs(obj=self.goal_obj))
             # Goal state is reached when the number of desired objects has increased.
             self.is_subtask_complete = lambda w: len(w.get_all_object_locs(obj=self.goal_obj)) > self.cur_obj_count
-
-
-
-
-
-            
-
-# class RealAgentQLearning:
-#     """Real Agent object that performs task inference and plans using Q-learning."""
-
-#     def __init__(self, arglist, name, id_color, recipes, state_size, action_size, learning_rate=0.1, discount_factor=0.99, exploration_rate=1.0, exploration_decay=0.99, exploration_min=0.01):
-#         self.arglist = arglist
-#         self.name = name
-#         self.color = id_color
-#         self.recipes = recipes
-#         self.state_size = state_size
-#         self.action_size = action_size
-#         self.learning_rate = learning_rate
-#         self.discount_factor = discount_factor
-#         self.exploration_rate = exploration_rate
-#         self.exploration_decay = exploration_decay
-#         self.exploration_min = exploration_min
-
-#         # Initialize Q-table with zeros
-#         self.q_table = np.zeros((state_size, action_size))
-
-#     def select_action(self, state):
-#         """Select action using epsilon-greedy policy."""
-#         if np.random.rand() < self.exploration_rate:
-#             # Exploration: Choose a random action
-#             return np.random.choice(self.action_size)
-#         else:
-#             # Exploitation: Choose action with maximum Q-value
-#             return np.argmax(self.q_table[state])
-
-#     def update_q_table(self, state, action, reward, next_state):
-#         """Update Q-value based on Q-learning update rule."""
-#         # Q-learning update rule
-#         target = reward + self.discount_factor * np.max(self.q_table[next_state])
-#         self.q_table[state, action] += self.learning_rate * (target - self.q_table[state, action])
-
-#     def decay_exploration(self):
-#         """Decay exploration rate over time."""
-#         if self.exploration_rate > self.exploration_min:
-#             self.exploration_rate *= self.exploration_decay

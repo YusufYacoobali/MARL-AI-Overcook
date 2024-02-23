@@ -425,6 +425,7 @@ class BayesianDelegator(Delegator):
         return SubtaskAllocDistribution(subtask_allocs)
 
     def select_subtask(self, agent_name):
+        #SUBTASK DECIDED HERE
         """Return subtask and subtask_agent_names for agent with agent_name
         with max. probability."""
         max_subtask_alloc = self.probs.get_max()
