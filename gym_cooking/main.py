@@ -123,7 +123,7 @@ def main_loop(arglist):
     if q_learning_agents:
 
         # RL Training parameters
-        num_episodes = 5  # Number of training episodes
+        num_episodes = 4  # Number of training episodes
         max_steps_per_episode = int(arglist.grid_size) * 4 # Maximum number of steps per episode
         
         for episode in range(num_episodes):
@@ -155,26 +155,25 @@ def main_loop(arglist):
             
             # RL Training after the episode
             print(f"Training agents after episode {episode}")
-            #raise Exception("Program stopped to observe new map made")
-            # for agent in real_agents:
-            #     agent.train(obs, action_dict[agent.name], reward, obs, done)
-
+           
     #raise Exception("Program stopped to observe new map made")
 
-         # Info bag for saving pkl files
     print("TRAINING ENDED")
     for agent in q_learning_agents:
         print("AGENT Q TABLE ", agent.name)
         for subtask, q_value in agent.q_values.items():
                 print(f"Subtask: {subtask}, Q-value: {q_value}")
 
-
+    # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
 
     for agent in q_learning_agents:
         agent.in_training = False
 
+    #add a env.reset()?
+        # its not running final run, its seeing last episode is done thats why
+    obs = env.reset()
     while not env.done():
         action_dict = {}
         for agent in real_agents:
@@ -194,10 +193,6 @@ def main_loop(arglist):
 
         # Saving info
         bag.add_status(cur_time=info['t'], real_agents=real_agents)
-    for agent in q_learning_agents:
-        for t in agent.good_tasks:
-            print("GOOD TASK FOUND for agent", agent.name)
-            print(t)
     # Saving final information before saving pkl file
     bag.set_collisions(collisions=env.collisions)
     bag.set_termination(termination_info=env.termination_info,

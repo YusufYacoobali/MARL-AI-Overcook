@@ -404,18 +404,9 @@ class QLearningAgent:
             print(f"Chosen action: {self.new_subtask}")
             self.new_subtask_agent_names = [self.name]
 
-            #             # Remove the selected subtask from the Q-table
-            # if self.new_subtask is not None:
-            #     del self.q_values[self.new_subtask]
-
         print("new subtask ", self.new_subtask)
         print("agrnt name", self.new_subtask_agent_names)
-        #raise Exception("Program stopped to observe new map made")
-        #planning is to do with how to do subtask, dont need to touch
-        # need to give delegator select subtask the list of q table or select here manually
-        # action is where to move next i think
         self.plan(copy.copy(obs))
-        print("new subtask ", self.new_subtask)
         #raise Exception("Program stopped to observe new map made")
         return self.action
     
@@ -508,16 +499,16 @@ class QLearningAgent:
             self.update_q_values( reward)
         elif self.is_subtask_complete(world) and self.in_training == False:
                         # Remove the selected subtask from the Q-table
-            if self.new_subtask is not None:
-                del self.q_values[self.new_subtask]
+            print("new subtask ", self.new_subtask)
+            print(self.subtask)
+            if self.subtask is not None:
+                del self.q_values[self.subtask]
                 print("OLD SUBTASK DELETED")
 
         print("AGENT ", self.name)
         print("Q-table inside refreshing subtasks:")
         for subtask, q_value in self.q_values.items():
             print(f"Subtask: {subtask}, Q-value: {q_value}")
-        # for i, task in enumerate(self.incomplete_subtasks):
-        #     print(f"Subtask: {task}, Q-values: {self.q_values[i]}")
 
         # Refresh for incomplete subtasks.
         if self.subtask_complete:
@@ -578,6 +569,7 @@ class QLearningAgent:
                     probs.append(self.none_action_prob)
                 else:
                     probs.append((1.0-self.none_action_prob)/(len(actions)-1))
+                    #probs dont add up to 1 error here
             self.action = actions[np.random.choice(len(actions), p=probs)]
         # Otherwise, plan accordingly.
         else:
