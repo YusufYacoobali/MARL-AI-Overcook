@@ -57,46 +57,6 @@ def parse_arguments():
 def fix_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
-
-# def initialize_agents(arglist):
-#     real_agents = []
-#     q_learning_agents = []
-
-#     with open('utils/levels/{}.txt'.format(arglist.level), 'r') as f:
-#         phase = 1
-#         recipes = []
-#         for line in f:
-#             line = line.strip('\n')
-#             if line == '':
-#                 phase += 1
-#             # phase 2: read in recipe list
-#             elif phase == 2:
-#                 recipes.append(globals()[line]())
-
-#             # phase 3: read in agent locations (up to num_agents)
-#             elif phase == 3:
-#                 if len(real_agents) + len(q_learning_agents) < arglist.num_agents:
-#                     loc = line.split(' ')
-#                     agent_name = 'agent-'+ str(len(real_agents) + len(q_learning_agents) + 1)
-#                     agent_model = agent_settings(arglist, agent_name)
-#                     #if agent_model != 'rl':
-#                     real_agent = RealAgent(
-#                             arglist=arglist,
-#                             name=agent_name,
-#                             id_color=COLORS[len(real_agents)],
-#                             recipes=recipes)
-#                     real_agents.append(real_agent)
-#                     # elif agent_model == 'rl':
-#                     #     q_learning_agent = QLearningAgent(
-#                     #             arglist=arglist,
-#                     #             name=agent_name,
-#                     #             id_color=COLORS[len(q_learning_agents)],
-#                     #             recipes=recipes)
-#                     #     q_learning_agents.append(q_learning_agent)
-#                     else:
-#                         raise Exception("Invalid model types")
-
-#     return real_agents, q_learning_agents
     
 def initialize_agents(arglist):
     real_agents = []
@@ -167,7 +127,6 @@ def main_loop(arglist):
                     action = agent.select_action(obs=obs, episode=episode)
                     action_dict[agent.name] = action
                     print(f"Agent {agent.name} selects action {action}")
-                #raise Exception("Program stopped to observe new map made")
                 # Take one step in the environment
                 obs, reward, done, info = env.step(action_dict=action_dict)
                 #episode_reward += reward
@@ -179,12 +138,7 @@ def main_loop(arglist):
                 if done:
                     print("Episode finished early. IN steps ", step)
                     break
-            
-            # RL Training after the episode
-            print(f"Training agents after episode {episode}")
            
-    #raise Exception("Program stopped to observe new map made")
-
     print("TRAINING ENDED")
     for agent in rl_agents:
         print("AGENT Q TABLE ", agent.name)
@@ -206,17 +160,12 @@ def main_loop(arglist):
         for agent in real_agents:
             action = agent.select_action(obs=obs, episode=0)
             action_dict[agent.name] = action
-        # for agent in q_learning_agents:
-        #     action = agent.select_action(obs=obs, episode=0)
-        #     action_dict[agent.name] = action
 
         obs, reward, done, info = env.step(action_dict=action_dict)
 
         # Agents
         for agent in real_agents:
             agent.refresh_subtasks(world=env.world, reward=0)
-        # for agent in q_learning_agents:
-        #     agent.refresh_subtasks(world=env.world, reward=0)
 
         # Saving info
         bag.add_status(cur_time=info['t'], real_agents=real_agents)
