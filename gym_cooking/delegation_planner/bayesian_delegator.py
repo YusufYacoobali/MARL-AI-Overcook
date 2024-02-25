@@ -1,6 +1,6 @@
 import recipe_planner.utils as recipe
 from delegation_planner.delegator import Delegator
-from delegation_planner.utils import SubtaskAllocDistribution
+from delegation_planner.utils import SubtaskAllocDistribution, QNetwork, QLearningAgent
 from navigation_planner.utils import get_subtask_obj, get_subtask_action_obj, get_single_actions
 from utils.interact import interact
 from utils.utils import agent_settings
@@ -10,6 +10,11 @@ from itertools import permutations, product, combinations
 import scipy as sp
 import numpy as np
 import copy
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import numpy as np
 
 SubtaskAllocation = namedtuple("SubtaskAllocation", "subtask subtask_agent_names")
 
@@ -37,6 +42,8 @@ class BayesianDelegator(Delegator):
         self.priors = 'uniform' if model_type == 'up' else 'spatial'
         self.planner = planner
         self.none_action_prob = none_action_prob
+        #self.grid_size = grid_size
+        #self.cur_map = cur_map
 
     def should_reset_priors(self, obs, incomplete_subtasks):
         """Returns whether priors should be reset.
@@ -70,6 +77,8 @@ class BayesianDelegator(Delegator):
             probs = self.add_greedy_subtasks()
         elif self.model_type == "dc":
             probs = self.add_dc_subtasks()
+        # elif self.model_type == "rl":
+        #     probs = self.add_rl_subtasks()
         else:
             probs = self.add_subtasks()
         return probs
@@ -161,10 +170,19 @@ class BayesianDelegator(Delegator):
             for t in subtask_alloc:
                 if t.subtask is not None:
                     # Calculate prior with this agent's planner.
-                    total_weight += 1.0 / float(self.get_lower_bound_for_subtask_alloc(
+                    # total_weight += 1.0 / float(self.get_lower_bound_for_subtask_alloc(
+                    #     obs=copy.copy(obs),
+                    #     subtask=t.subtask,
+                    #     subtask_agent_names=t.subtask_agent_names))
+                    lower_bound = self.get_lower_bound_for_subtask_alloc(
                         obs=copy.copy(obs),
                         subtask=t.subtask,
-                        subtask_agent_names=t.subtask_agent_names))
+                        subtask_agent_names=t.subtask_agent_names)
+                    if lower_bound != 0:  
+                        total_weight += 1.0 / float(lower_bound)
+                    else:
+                      
+                        total_weight += 0  
             # Weight by number of nonzero subtasks.
             some_probs.update(
                     subtask_alloc=subtask_alloc,
@@ -242,7 +260,11 @@ class BayesianDelegator(Delegator):
             sim_agent = list(filter(lambda a: a.name == self.agent_name, obs_tm1.sim_agents))[0]
             # Get the number of possible actions at obs_tm1 available to agent.
             num_actions = len(get_single_actions(env=obs_tm1, agent=sim_agent)) -1
-            action_prob = (1.0 - self.none_action_prob)/(num_actions)    # exclude (0, 0)
+            if num_actions != 0:
+                action_prob = (1.0 - self.none_action_prob) / num_actions
+            else:
+                action_prob = 0.00
+            #action_prob = (1.0 - self.none_action_prob)/(num_actions)    # exclude (0, 0)
             diffs = [self.none_action_prob] + [action_prob] * num_actions
             softmax_diffs = sp.special.softmax(beta * np.asarray(diffs))
             # Probability agents did nothing for None subtask.
@@ -403,6 +425,7 @@ class BayesianDelegator(Delegator):
         return SubtaskAllocDistribution(subtask_allocs)
 
     def select_subtask(self, agent_name):
+        #SUBTASK DECIDED HERE
         """Return subtask and subtask_agent_names for agent with agent_name
         with max. probability."""
         max_subtask_alloc = self.probs.get_max()
@@ -466,3 +489,11 @@ class BayesianDelegator(Delegator):
                     factor=update)
             print("UPDATING: subtask_alloc {} by {}".format(subtask_alloc, update))
         self.probs.normalize()
+
+def print_map(map):
+        """
+        Used for debugguing purposes
+        Parameters: map - the map to be printed
+        """
+        for row in map:
+            print(''.join(row))

@@ -44,19 +44,29 @@ class RealAgent:
         self.beta = arglist.beta
         self.none_action_prob = 0.5
 
+        self.is_using_reinforcement_learning = False
+
         self.model_type = agent_settings(arglist, name)
         if self.model_type == "up":
             self.priors = 'uniform'
+        elif self.model_type == "rl":
+            self.is_using_reinforcement_learning = True
+            self.priors = 'spatial'
         else:
             self.priors = 'spatial'
-
+        print("MODEL TYPE " ,self.model_type)
         # Navigation planner.
         self.planner = E2E_BRTDP(
                 alpha=arglist.alpha,
                 tau=arglist.tau,
                 cap=arglist.cap,
                 main_cap=arglist.main_cap)
-
+        
+        # Q-learning parameters
+        self.q_values = ()
+        self.learning_rate = 0.1  
+        self.in_training = True
+        
     def __str__(self):
         return color(self.name[-1], self.color)
 
@@ -79,7 +89,7 @@ class RealAgent:
             return 'None'
         return self.holding.full_name
 
-    def select_action(self, obs):
+    def select_action(self, obs, episode):
         """Return best next action for this agent given observations."""
         sim_agent = list(filter(lambda x: x.name == self.name, obs.sim_agents))[0]
         self.location = sim_agent.location
@@ -87,12 +97,34 @@ class RealAgent:
         self.action = sim_agent.action
 
         if obs.t == 0:
-            self.setup_subtasks(env=obs)
+            self.setup_subtasks(env=obs, episode=episode)
 
         # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
-        self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
+
+        if self.is_using_reinforcement_learning:
+            print("AGENT TRAINING STATUS ", self.in_training)
+            #if rl agent is training, learn from subtasks of delegator, else pick best from learnt tasks
+            if self.in_training:
+                self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
+                        agent_name=self.name)
+            else: 
+                for subtask, q_value in self.q_values.items():
+                    print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
+
+                max_q_value = float('-inf')
+                self.new_subtask = None
+                for subtask, q_value in self.q_values.items():
+                    if q_value > max_q_value:
+                        max_q_value = q_value
+                        self.new_subtask = subtask
+                print(f"Chosen action: {self.new_subtask}")
+                self.new_subtask_agent_names = [self.name]
+        #non rl is original way
+        else: 
+             self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
                 agent_name=self.name)
+             
         self.plan(copy.copy(obs))
         return self.action
 
@@ -109,9 +141,12 @@ class RealAgent:
         # ag = recipe_utils.make_action_graph(self.sw.initial, recipe_paths[i])
         return all_subtasks
 
-    def setup_subtasks(self, env):
+    def setup_subtasks(self, env, episode):
         """Initializing subtasks and subtask allocator, Bayesian Delegation."""
         self.incomplete_subtasks = self.get_subtasks(world=env.world)
+        #set up q values in first episode
+        if self.is_using_reinforcement_learning and self.in_training and episode == 0:
+            self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
         self.delegator = BayesianDelegator(
                 agent_name=self.name,
                 all_agent_names=env.get_agent_names(),
@@ -125,7 +160,7 @@ class RealAgent:
         self.subtask_agent_names = []
         self.subtask_complete = False
 
-    def refresh_subtasks(self, world):
+    def refresh_subtasks(self, world, reward):
         """Refresh subtasks---relevant for Bayesian Delegation."""
         # Check whether subtask is complete.
         self.subtask_complete = False
@@ -137,6 +172,15 @@ class RealAgent:
             color(self.name, self.color),
             self.subtask, self.is_subtask_complete(world),
             self.planner.subtask, self.planner.goal_obj))
+        
+        if self.is_using_reinforcement_learning:
+            if self.is_subtask_complete(world) and self.in_training == True:
+                self.update_q_values(reward)
+            elif self.is_subtask_complete(world) and self.in_training == False:
+                # Remove the selected subtask from the Q-table
+                if self.subtask is not None:
+                    del self.q_values[self.subtask]
+                    print("OLD SUBTASK DELETED")
 
         # Refresh for incomplete subtasks.
         if self.subtask_complete:
@@ -197,6 +241,7 @@ class RealAgent:
                     probs.append(self.none_action_prob)
                 else:
                     probs.append((1.0-self.none_action_prob)/(len(actions)-1))
+                    #probs dont add up to 1 error here
             self.action = actions[np.random.choice(len(actions), p=probs)]
         # Otherwise, plan accordingly.
         else:
@@ -254,6 +299,15 @@ class RealAgent:
             self.cur_obj_count = len(env.world.get_all_object_locs(obj=self.goal_obj))
             # Goal state is reached when the number of desired objects has increased.
             self.is_subtask_complete = lambda w: len(w.get_all_object_locs(obj=self.goal_obj)) > self.cur_obj_count
+
+    def update_q_values(self, reward):
+        """Update Q-value for the given subtask based on observed reward."""
+        # Update Q-value using Q-learning update rule
+        print("AGENT ", self.name)
+        print("subtask GIVEN and updating, new q values of ",self.subtask)
+        self.q_values[self.subtask] += self.learning_rate * (reward - self.q_values[self.subtask])
+        for subtask, q_value in self.q_values.items():
+            print(f"Subtask: {subtask}, Q-value: {q_value}")
 
 
 class SimAgent:

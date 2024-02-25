@@ -5,6 +5,7 @@ from utils.map import BaseMap
 from utils.world import World
 from utils.agent import RealAgent, SimAgent, COLORS
 from utils.core import *
+from utils.utils import agent_settings
 from misc.game.gameplay import GamePlay
 from misc.metrics.metrics_bag import Bag
 
@@ -56,7 +57,7 @@ def parse_arguments():
 def fix_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
-
+    
 def initialize_agents(arglist):
     real_agents = []
 
@@ -84,7 +85,12 @@ def initialize_agents(arglist):
 
     return real_agents
 
+def check_parameters(arglist):
+    pass
+
 def main_loop(arglist):
+
+    check_parameters(arglist)
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
     map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)
@@ -94,23 +100,72 @@ def main_loop(arglist):
     obs = env.reset()
     #game = GameVisualize(env)
     real_agents = initialize_agents(arglist=arglist)
+    rl_agents = []
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
 
+    for agent in real_agents:
+        if agent.is_using_reinforcement_learning:
+            rl_agents.append(agent)
+
+    #train rl agents
+    if rl_agents:
+        # RL Training parameters
+        num_episodes = 1  # Number of training episodes
+        max_steps_per_episode = int(arglist.grid_size) * 4 # Maximum number of steps per episode
+        
+        for episode in range(num_episodes):
+            print(f"Starting episode {episode}")
+            obs = env.reset()  # Reset the environment for a new episode
+                
+            for step in range(max_steps_per_episode):
+                action_dict = {}
+                for agent in rl_agents:
+                    print("AGENT ", agent.name)
+                    action = agent.select_action(obs=obs, episode=episode)
+                    action_dict[agent.name] = action
+                    print(f"Agent {agent.name} selects action {action}")
+                # Take one step in the environment
+                obs, reward, done, info = env.step(action_dict=action_dict)
+                #episode_reward += reward
+                print(f"Step {step}: Reward = {reward}, Done = {done}")
+
+                for agent in rl_agents:
+                    agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode - step)
+
+                if done:
+                    print("Episode finished early. IN steps ", step)
+                    break
+           
+    print("TRAINING ENDED")
+    for agent in rl_agents:
+        print("AGENT Q TABLE ", agent.name)
+        for subtask, q_value in agent.q_values.items():
+                print(f"Subtask: {subtask}, Q-value: {q_value}")
+
+    # Info bag for saving pkl files
+    bag = Bag(arglist=arglist, filename=env.filename)
+    bag.set_recipe(recipe_subtasks=env.all_subtasks)
+
+    for agent in rl_agents:
+        agent.in_training = False
+
+    #add a env.reset()?
+        # its not running final run, its seeing last episode is done thats why
+    obs = env.reset()
     while not env.done():
         action_dict = {}
-        #raise Exception("Program stopped to observe new map made")
         for agent in real_agents:
-            action = agent.select_action(obs=obs)
+            action = agent.select_action(obs=obs, episode=0)
             action_dict[agent.name] = action
 
         obs, reward, done, info = env.step(action_dict=action_dict)
 
         # Agents
         for agent in real_agents:
-            agent.refresh_subtasks(world=env.world)
+            agent.refresh_subtasks(world=env.world, reward=0)
 
         # Saving info
         bag.add_status(cur_time=info['t'], real_agents=real_agents)

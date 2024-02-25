@@ -4,6 +4,9 @@ import scipy as sp
 import random
 from utils.utils import agent_settings
 
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 class SubtaskAllocDistribution():
     """Represents a distribution over subtask allocations."""
@@ -87,3 +90,126 @@ class SubtaskAllocDistribution():
             else:
                 self.probs[subtask_alloc] *= 1./total
         return self.probs
+
+
+
+
+
+class QLearningAgent:
+    def __init__(self, agent_name, subtasks, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01, batch_size=64):
+        self.agent_name = agent_name
+        self.subtasks = subtasks
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.epsilon_min = epsilon_min
+        self.batch_size = batch_size
+        self.memory = []
+        self.gamma = gamma
+        self.model = QNetwork(len(subtasks))
+        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.loss_function = nn.MSELoss()
+
+    def remember(self, action, reward, next_action, done):
+        self.memory.append((action, reward, next_action, done))
+
+    def choose_action(self):
+        if np.random.rand() <= self.epsilon:
+            return np.random.choice(len(self.subtasks))
+        else:
+            with torch.no_grad():
+                state = torch.FloatTensor(np.eye(len(self.subtasks))[self.agent_name]).unsqueeze(0)
+                q_values = self.model(state)
+                return torch.argmax(q_values).item()
+
+    def replay(self):
+        if len(self.memory) < self.batch_size:
+            return
+        batch = random.sample(self.memory, self.batch_size)
+        for action, reward, next_action, done in batch:
+            state = torch.FloatTensor(np.eye(len(self.subtasks))[action]).unsqueeze(0)
+            next_state = torch.FloatTensor(np.eye(len(self.subtasks))[next_action]).unsqueeze(0)
+            target = reward
+            if not done:
+                target = reward + self.gamma * torch.max(self.model(next_state).detach())
+            target_f = self.model(state).clone()
+            target_f[0][action] = target
+            self.optimizer.zero_grad()
+            loss = self.loss_function(self.model(state), target_f)
+            loss.backward()
+            self.optimizer.step()
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
+
+class QNetwork(nn.Module):
+    def __init__(self, num_actions):
+        super(QNetwork, self).__init__()
+        self.fc1 = nn.Linear(num_actions, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, num_actions)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+
+
+
+# class DQN(nn.Module):
+#     def __init__(self, num_actions):
+#         super(DQN, self).__init__()
+#         self.fc1 = nn.Linear(num_actions, 128)
+#         self.fc2 = nn.Linear(128, 64)
+#         self.fc3 = nn.Linear(64, num_actions)
+
+#     def forward(self, x):
+#         x = torch.relu(self.fc1(x))
+#         x = torch.relu(self.fc2(x))
+#         x = self.fc3(x)
+#         return x
+
+# class RLAgent:
+#     def __init__(self, agent_name, actions, learning_rate=0.001, gamma=0.99, epsilon=1.0, epsilon_decay=0.995, epsilon_min=0.01, batch_size=64):
+#         self.agent_name = agent_name
+#         self.actions = actions
+#         self.epsilon = epsilon
+#         self.epsilon_decay = epsilon_decay
+#         self.epsilon_min = epsilon_min
+#         self.batch_size = batch_size
+#         self.memory = []
+#         self.gamma = gamma
+#         self.model = DQN(len(actions))
+#         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+#         self.loss_function = nn.MSELoss()
+
+#     def remember(self, state, action, reward, next_state, done):
+#         self.memory.append((state, action, reward, next_state, done))
+
+#     def choose_action(self, state):
+#         if np.random.rand() <= self.epsilon:
+#             return np.random.choice(self.actions)
+#         else:
+#             with torch.no_grad():
+#                 state = torch.FloatTensor(state).unsqueeze(0)
+#                 q_values = self.model(state)
+#                 return torch.argmax(q_values).item()
+
+#     def replay(self):
+#         if len(self.memory) < self.batch_size:
+#             return
+#         batch = random.sample(self.memory, self.batch_size)
+#         for state, action, reward, next_state, done in batch:
+#             state = torch.FloatTensor(state).unsqueeze(0)
+#             next_state = torch.FloatTensor(next_state).unsqueeze(0)
+#             target = reward
+#             if not done:
+#                 target = reward + self.gamma * torch.max(self.model(next_state).detach())
+#             target_f = self.model(state).clone()
+#             target_f[0][action] = target
+#             self.optimizer.zero_grad()
+#             loss = self.loss_function(self.model(state), target_f)
+#             loss.backward()
+#             self.optimizer.step()
+#         if self.epsilon > self.epsilon_min:
+#             self.epsilon *= self.epsilon_decay
