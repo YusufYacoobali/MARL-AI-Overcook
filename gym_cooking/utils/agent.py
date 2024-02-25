@@ -44,6 +44,8 @@ class RealAgent:
         self.beta = arglist.beta
         self.none_action_prob = 0.5
 
+        self.is_using_reinforcement_learning = False
+
         self.model_type = agent_settings(arglist, name)
         if self.model_type == "up":
             self.priors = 'uniform'
@@ -64,7 +66,6 @@ class RealAgent:
         self.q_values = ()
         self.learning_rate = 0.1  
         self.in_training = True
-        #self.is_using_reinforcement_learning = False
         
     def __str__(self):
         return color(self.name[-1], self.color)
