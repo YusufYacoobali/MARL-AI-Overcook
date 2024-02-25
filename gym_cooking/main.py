@@ -3,7 +3,7 @@
 from recipe_planner.recipe import *
 from utils.map import BaseMap
 from utils.world import World
-from utils.agent import RealAgent, SimAgent, COLORS, QLearningAgent
+from utils.agent import RealAgent, SimAgent, COLORS
 from utils.core import *
 from utils.utils import agent_settings
 from misc.game.gameplay import GamePlay
@@ -58,9 +58,48 @@ def fix_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+# def initialize_agents(arglist):
+#     real_agents = []
+#     q_learning_agents = []
+
+#     with open('utils/levels/{}.txt'.format(arglist.level), 'r') as f:
+#         phase = 1
+#         recipes = []
+#         for line in f:
+#             line = line.strip('\n')
+#             if line == '':
+#                 phase += 1
+#             # phase 2: read in recipe list
+#             elif phase == 2:
+#                 recipes.append(globals()[line]())
+
+#             # phase 3: read in agent locations (up to num_agents)
+#             elif phase == 3:
+#                 if len(real_agents) + len(q_learning_agents) < arglist.num_agents:
+#                     loc = line.split(' ')
+#                     agent_name = 'agent-'+ str(len(real_agents) + len(q_learning_agents) + 1)
+#                     agent_model = agent_settings(arglist, agent_name)
+#                     #if agent_model != 'rl':
+#                     real_agent = RealAgent(
+#                             arglist=arglist,
+#                             name=agent_name,
+#                             id_color=COLORS[len(real_agents)],
+#                             recipes=recipes)
+#                     real_agents.append(real_agent)
+#                     # elif agent_model == 'rl':
+#                     #     q_learning_agent = QLearningAgent(
+#                     #             arglist=arglist,
+#                     #             name=agent_name,
+#                     #             id_color=COLORS[len(q_learning_agents)],
+#                     #             recipes=recipes)
+#                     #     q_learning_agents.append(q_learning_agent)
+#                     else:
+#                         raise Exception("Invalid model types")
+
+#     return real_agents, q_learning_agents
+    
 def initialize_agents(arglist):
     real_agents = []
-    q_learning_agents = []
 
     with open('utils/levels/{}.txt'.format(arglist.level), 'r') as f:
         phase = 1
@@ -75,33 +114,19 @@ def initialize_agents(arglist):
 
             # phase 3: read in agent locations (up to num_agents)
             elif phase == 3:
-                if len(real_agents) + len(q_learning_agents) < arglist.num_agents:
+                if len(real_agents) < arglist.num_agents:
                     loc = line.split(' ')
-                    agent_name = 'agent-'+ str(len(real_agents) + len(q_learning_agents) + 1)
-                    agent_model = agent_settings(arglist, agent_name)
-                    if agent_model != 'rl':
-                        real_agent = RealAgent(
-                                arglist=arglist,
-                                name=agent_name,
-                                id_color=COLORS[len(real_agents)],
-                                recipes=recipes)
-                        real_agents.append(real_agent)
-                    elif agent_model == 'rl':
-                        q_learning_agent = QLearningAgent(
-                                arglist=arglist,
-                                name=agent_name,
-                                id_color=COLORS[len(q_learning_agents)],
-                                recipes=recipes,
-                                num_actions=arglist.max_num_subtasks)
-                        q_learning_agents.append(q_learning_agent)
-                    else:
-                        raise Exception("Invalid model types")
+                    real_agent = RealAgent(
+                            arglist=arglist,
+                            name='agent-'+str(len(real_agents)+1),
+                            id_color=COLORS[len(real_agents)],
+                            recipes=recipes)
+                    real_agents.append(real_agent)
 
-    return real_agents, q_learning_agents
+    return real_agents
 
 def check_parameters(arglist):
     pass
-    
 
 def main_loop(arglist):
 
@@ -114,28 +139,30 @@ def main_loop(arglist):
     env = gym.envs.make("gym_cooking:overcookedEnv-v0", arglist=arglist)
     obs = env.reset()
     #game = GameVisualize(env)
-    real_agents, q_learning_agents = initialize_agents(arglist=arglist)
+    real_agents = initialize_agents(arglist=arglist)
+    rl_agents = []
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
 
-    if q_learning_agents:
+    for agent in real_agents:
+        if agent.is_using_reinforcement_learning:
+            rl_agents.append(agent)
 
+    #train rl agents
+    if rl_agents:
         # RL Training parameters
-        num_episodes = 4  # Number of training episodes
+        num_episodes = 1  # Number of training episodes
         max_steps_per_episode = int(arglist.grid_size) * 4 # Maximum number of steps per episode
         
         for episode in range(num_episodes):
             print(f"Starting episode {episode}")
             obs = env.reset()  # Reset the environment for a new episode
-            #episode_reward = 0  # Accumulator for the episode reward
-            #if episode == 1:
-                #episode_reward = 100
                 
             for step in range(max_steps_per_episode):
                 action_dict = {}
-                for agent in q_learning_agents:
+                for agent in rl_agents:
                     print("AGENT ", agent.name)
                     action = agent.select_action(obs=obs, episode=episode)
                     action_dict[agent.name] = action
@@ -146,7 +173,7 @@ def main_loop(arglist):
                 #episode_reward += reward
                 print(f"Step {step}: Reward = {reward}, Done = {done}")
 
-                for agent in q_learning_agents:
+                for agent in rl_agents:
                     agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode - step)
 
                 if done:
@@ -159,7 +186,7 @@ def main_loop(arglist):
     #raise Exception("Program stopped to observe new map made")
 
     print("TRAINING ENDED")
-    for agent in q_learning_agents:
+    for agent in rl_agents:
         print("AGENT Q TABLE ", agent.name)
         for subtask, q_value in agent.q_values.items():
                 print(f"Subtask: {subtask}, Q-value: {q_value}")
@@ -168,7 +195,7 @@ def main_loop(arglist):
     bag = Bag(arglist=arglist, filename=env.filename)
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
 
-    for agent in q_learning_agents:
+    for agent in rl_agents:
         agent.in_training = False
 
     #add a env.reset()?
@@ -177,19 +204,19 @@ def main_loop(arglist):
     while not env.done():
         action_dict = {}
         for agent in real_agents:
-            action = agent.select_action(obs=obs)
-            action_dict[agent.name] = action
-        for agent in q_learning_agents:
             action = agent.select_action(obs=obs, episode=0)
             action_dict[agent.name] = action
+        # for agent in q_learning_agents:
+        #     action = agent.select_action(obs=obs, episode=0)
+        #     action_dict[agent.name] = action
 
         obs, reward, done, info = env.step(action_dict=action_dict)
 
         # Agents
         for agent in real_agents:
-            agent.refresh_subtasks(world=env.world)
-        for agent in q_learning_agents:
             agent.refresh_subtasks(world=env.world, reward=0)
+        # for agent in q_learning_agents:
+        #     agent.refresh_subtasks(world=env.world, reward=0)
 
         # Saving info
         bag.add_status(cur_time=info['t'], real_agents=real_agents)
