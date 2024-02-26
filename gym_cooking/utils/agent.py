@@ -66,6 +66,18 @@ class RealAgent:
         self.q_values = ()
         self.learning_rate = 0.1  
         self.in_training = True
+
+         # DQN parameters
+        self.q_network = None  # Initialize Q-network
+        self.target_network = None  # Initialize target network
+        self.batch_size = 1  # Mini-batch size for training
+        self.replay_buffer = []  # Experience replay buffer
+        self.replay_buffer_capacity = 10000  # Capacity of the replay buffer
+        self.gamma = 0.99  # Discount factor
+        self.epsilon = 1.0  # Initial epsilon for epsilon-greedy exploration
+        self.epsilon_min = 0.01  # Minimum epsilon
+        self.epsilon_decay = 0.995  # Epsilon decay rate
+        self.update_target_network_freq = 1000  # Frequency to update the target network
         
     def __str__(self):
         return color(self.name[-1], self.color)
@@ -112,18 +124,27 @@ class RealAgent:
                 for subtask, q_value in self.q_values.items():
                     print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
 
-                max_q_value = float('-inf')
-                self.new_subtask = None
-                for subtask, q_value in self.q_values.items():
-                    if q_value > max_q_value:
-                        max_q_value = q_value
-                        self.new_subtask = subtask
-                print(f"Chosen action: {self.new_subtask}")
+                q_values = self.q_network.predict(np.zeros((1, 1)))  # Placeholder input
+                self.new_subtask = self.incomplete_subtasks[np.argmax(q_values)]
                 self.new_subtask_agent_names = [self.name]
+                print(f"NEW Chosen action: {self.new_subtask}")
+
+                # max_q_value = float('-inf')
+                # self.new_subtask = None
+                # for subtask, q_value in self.q_values.items():
+                #     if q_value > max_q_value:
+                #         max_q_value = q_value
+                #         self.new_subtask = subtask
+                # print(f"Chosen action: {self.new_subtask}")
+                # self.new_subtask_agent_names = [self.name]
         #non rl is original way
         else: 
              self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
                 agent_name=self.name)
+             
+        # Decay epsilon for epsilon-greedy exploration
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
              
         self.plan(copy.copy(obs))
         return self.action
@@ -147,6 +168,14 @@ class RealAgent:
         #set up q values in first episode
         if self.is_using_reinforcement_learning and self.in_training and episode == 0:
             self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
+
+        # print("Q-values:")
+        # for i, value in enumerate(self.q_values):
+        #     print(f"Action {i}: {value}")
+
+        for subtask, q_value in self.q_values.items():
+                    print(f"Q VALUES Subtask: {subtask}, Q-value: {q_value}")
+
         self.delegator = BayesianDelegator(
                 agent_name=self.name,
                 all_agent_names=env.get_agent_names(),
@@ -173,14 +202,32 @@ class RealAgent:
             self.subtask, self.is_subtask_complete(world),
             self.planner.subtask, self.planner.goal_obj))
         
+        # if self.is_using_reinforcement_learning:
+        #     if self.is_subtask_complete(world) and self.in_training == True:
+        #         self.update_q_values(reward)
+        #     elif self.is_subtask_complete(world) and self.in_training == False:
+        #         # Remove the selected subtask from the Q-table
+        #         if self.subtask is not None:
+        #             del self.q_values[self.subtask]
+        #             print("OLD SUBTASK DELETED")
+
+          # Update Q-values using DQN
         if self.is_using_reinforcement_learning:
-            if self.is_subtask_complete(world) and self.in_training == True:
-                self.update_q_values(reward)
-            elif self.is_subtask_complete(world) and self.in_training == False:
-                # Remove the selected subtask from the Q-table
-                if self.subtask is not None:
-                    del self.q_values[self.subtask]
-                    print("OLD SUBTASK DELETED")
+            if self.subtask_complete and self.in_training:
+                print("UPDATING Q-values:")
+                for subtask, q_value in self.q_values.items():
+                    print(f"Q VALUES Subtask: {subtask}, Q-value: {q_value}")
+
+                self.update_replay_buffer(reward)
+                self.train_dqn()
+
+                print("NEW UPDATED Q-values:")
+                for subtask, q_value in self.q_values.items():
+                    print(f"Q VALUES Subtask: {subtask}, Q-value: {q_value}")
+            elif self.subtask_complete and self.in_training == False:
+                #delete old subtask?
+                pass
+
 
         # Refresh for incomplete subtasks.
         if self.subtask_complete:
@@ -308,6 +355,56 @@ class RealAgent:
         self.q_values[self.subtask] += self.learning_rate * (reward - self.q_values[self.subtask])
         for subtask, q_value in self.q_values.items():
             print(f"Subtask: {subtask}, Q-value: {q_value}")
+
+    def update_replay_buffer(self, reward):
+        # Store experience in replay buffer
+        experience = {
+            #'state': np.zeros((1, 1)),  # Placeholder state
+            'action': self.subtask,
+            'reward': reward,
+            'next_subtask': self.new_subtask
+        }
+        self.replay_buffer.append(experience)
+
+        # Limit replay buffer size
+        if len(self.replay_buffer) > self.replay_buffer_capacity:
+            self.replay_buffer.pop(0)
+
+    def train_dqn(self):
+        # Sample mini-batch from replay buffer
+        mini_batch = np.random.choice(self.replay_buffer, self.batch_size, replace=False)
+
+        # Extract actions, rewards, and next subtasks from mini-batch
+        actions = np.array([experience['action'] for experience in mini_batch])
+        rewards = np.array([experience['reward'] for experience in mini_batch])
+        next_subtasks = np.array([experience['next_subtask'] for experience in mini_batch])
+
+        # Compute target Q-values using target network
+        target_q_values = rewards + self.gamma * np.amax(self.predict_target_q_values(next_subtasks), axis=1)
+
+        # Update Q-values by minimizing loss
+        for subtask, target_q_value in zip(actions, target_q_values):
+            self.fit_q_values(subtask, target_q_value)
+
+        # # Periodically update target network
+        # if episode % self.update_target_network_freq == 0:
+        #     self.update_target_network()
+
+    def predict_q_values(self, subtask):
+        """Predict Q-values for a given subtask using the Q-network."""
+        return self.q_values[subtask]  # Assuming q_values is a dictionary mapping subtasks to Q-values
+
+    def predict_target_q_values(self, next_subtasks):
+        """Predict target Q-values for given next subtasks using the target network."""
+        return np.array([self.predict_q_values(next_subtask) for next_subtask in next_subtasks])
+
+    def fit_q_values(self, subtask, target_q_value):
+        """Update Q-value for a given subtask based on observed target Q-value."""
+        self.q_values[subtask] += self.learning_rate * (target_q_value - self.q_values[subtask])
+
+    def update_target_network(self):
+        """Update the weights of the target network with the weights of the Q-network."""
+        self.target_q_values = self.q_values.copy()  # Assuming q_values is the Q-network
 
 
 class SimAgent:
