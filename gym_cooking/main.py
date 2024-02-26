@@ -140,10 +140,11 @@ def main_loop(arglist):
                     break
            
     print("TRAINING ENDED")
-    for agent in rl_agents:
-        print("AGENT Q TABLE ", agent.name)
-        for subtask, q_value in agent.q_values.items():
-                print(f"Subtask: {subtask}, Q-value: {q_value}")
+    print("---------------\n---------------\n-----------\n----------\n")
+    # for agent in rl_agents:
+    #     print("AGENT Q TABLE ", agent.name)
+    #     for subtask, q_value in agent.q_values.items():
+    #             print(f"Subtask: {subtask}, Q-value: {q_value}")
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
