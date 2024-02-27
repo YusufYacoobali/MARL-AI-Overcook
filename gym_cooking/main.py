@@ -135,11 +135,15 @@ def main_loop(arglist):
                 for agent in rl_agents:
                     agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode - step)
 
-                if done:
+                if done or step == max_steps_per_episode-1:
+                    for agent in rl_agents:
+                        agent.train()
+                        print("AGENT TRAINNNEDDD")
                     print("Episode finished early. IN steps ", step)
                     break
            
     print("TRAINING ENDED")
+    #raise Exception("STOP")
     print("---------------\n---------------\n-----------\n----------\n")
     # for agent in rl_agents:
     #     print("AGENT Q TABLE ", agent.name)
