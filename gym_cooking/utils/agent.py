@@ -142,10 +142,7 @@ class RealAgent:
                 self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
                         agent_name=self.name)
             else: 
-                # for subtask, q_value in self.q_values.items():
-                #     print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
-                
-                #NEXT PART TO FIXXXXX
+
                 completion_status_list = [status for status in self.task_completion_status.values()]
                 # Convert completion_status_list to a float tensor with requires_grad=True
                 #input_tensor = torch.tensor([completion_status_list], dtype=torch.float32, requires_grad=True)
@@ -166,8 +163,7 @@ class RealAgent:
                 best_action_index = np.argmax(action_probs)
 
                 # Map the action index to the corresponding subtask string
-                self.new_subtask = self.incomplete_subtasks[best_action_index]
-                #self.new_subtask = self.incomplete_subtasks[subtask_index]
+                self.new_subtask = list(self.task_completion_status.keys())[best_action_index]
                 self.new_subtask_agent_names = [self.name]
                 print(f"Chosen action: {self.new_subtask}")
                 #raise Exception("STOPPP")
@@ -259,8 +255,8 @@ class RealAgent:
                 # if self.subtask is not None:
                 #     del self.q_values[self.subtask]
                 #     print("OLD SUBTASK DELETED")
-                pass
-
+                self.task_completion_status[self.subtask] = 1
+                
     def collect_experience(self, reward):
         state = [status for status in self.task_completion_status.values()]
         # Append the current state, action, and reward to their respective lists
@@ -357,82 +353,6 @@ class RealAgent:
     #     # Print updated action probabilities
     #     new_action_probs = self.policy_network(input_tensor)
     #     print("AFTER UPDATE New Action Probabilities:", new_action_probs)
-
-
-    # def perform_ppo_update(self, reward):
-    #     # Convert completion_status_list to a tensor
-    #     #reward = 20 - reward
-    #     completion_status_list = [status for status in self.task_completion_status.values()]
-    #     input_tensor = torch.tensor([completion_status_list], dtype=torch.float32, requires_grad=True)
-    #     input_tensor = input_tensor.clone().detach()
-
-    #     for task, completion_status in self.task_completion_status.items():
-    #          print("Task:", task, "| Completion Status:", completion_status)
-    #     print("INPUT Tensor:", input_tensor)
-    #     #raise Exception("STOP")
-        
-    #     # Calculate new action probabilities
-    #     new_action_probs = self.policy_network(input_tensor)
-    #     task_names = list(self.task_completion_status.keys())
-    #     print("SUBTASK GETTING UPDATED ", self.subtask)
-    #     print("New Action Probabilities:", new_action_probs)
-    #     subtask_index = task_names.index(self.subtask)
-    #     #raise Exception("STOP")
-    #     # Calculate new log probability for the current subtask
-    #     new_log_prob = torch.log(new_action_probs[0, subtask_index])
-
-    #     with torch.no_grad():  # Ensure that the computation is not tracked for gradient calculation
-    #         ratio = torch.exp(new_log_prob - self.log_prob)
-    #         print("Ratio:", ratio)
-    #             # Now, ratio is a leaf tensor with requires_grad=True
-    #     ratio.requires_grad = True
-    #     print("Ratio.requires_grad:", ratio.requires_grad)
-
-    #     # Calculate surrogate loss
-    #     epsilon = 1
-    #     surrogate1 = ratio * reward
-    #     print("Surrogate1:", surrogate1)
-    #     # Detach ratio tensor before applying clamp
-    #     clamped_ratio = torch.clamp(ratio.detach(), 1 - epsilon, 1 + epsilon)
-    #     print("Clamped Ratio:", clamped_ratio)
-    #     surrogate2 = clamped_ratio * reward
-    #     print("Surrogate2:", surrogate2)
-
-    #     # Clone tensors to avoid inplace operations
-    #     surrogate1_clone = surrogate1.clone().detach()
-    #     surrogate2_clone = surrogate2.clone().detach()
-    #     print("Surrogate1 Clone:", surrogate1_clone)
-    #     print("Surrogate2 Clone:", surrogate2_clone)
-
-    #     surrogate1_clone.requires_grad = True
-    #     surrogate2_clone.requires_grad = True
-    #     print("Surrogate1 Clone.requires_grad:", surrogate1_clone.requires_grad)
-    #     print("Surrogate2 Clone.requires_grad:", surrogate2_clone.requires_grad)
-
-    #     # Calculate surrogate loss
-    #     surrogate_loss = -torch.min(surrogate1_clone, surrogate2_clone)
-    #     print("Surrogate Loss:", surrogate_loss)
-    #     #surrogate_loss = -torch.min(surrogate1, surrogate2)
-
-    #     print("New Log Probability:", new_log_prob)
-    #     print("Old Log Probability:", self.log_prob)
-        
-    #     # Update policy network
-    #     self.optimizer.zero_grad()
-    #     surrogate_loss.backward(retain_graph=True)
-    #     self.optimizer.step()
-
-    #     for param_tensor in self.policy_network.state_dict():
-    #         print(param_tensor, "\t", self.policy_network.state_dict()[param_tensor].size())
-
-    #     for param in self.policy_network.parameters():
-    #         print(param.grad)
-
-    #     new_action_probs = self.policy_network(input_tensor)
-    #     print("AFTER UPDATE New Action Probabilities:", new_action_probs)
-        raise Exception("STOP")
-
-        return surrogate_loss.item()
 
     def update_subtasks(self, env):
         """Update incomplete subtasks---relevant for Bayesian Delegation."""
