@@ -137,18 +137,19 @@ def main_loop(arglist):
 
                 if done or step == max_steps_per_episode-1:
                     for agent in rl_agents:
-                        agent.train()
-                        print("AGENT TRAINNNEDDD")
+                        if agent.model_type == "ppo":
+                            agent.train()
+                            print("AGENT TRAINNNEDDD")
                     print("Episode finished early. IN steps ", step)
                     break
            
     print("TRAINING ENDED")
-    #raise Exception("STOP")
-    print("---------------\n---------------\n-----------\n----------\n")
     # for agent in rl_agents:
     #     print("AGENT Q TABLE ", agent.name)
     #     for subtask, q_value in agent.q_values.items():
     #             print(f"Subtask: {subtask}, Q-value: {q_value}")
+    #raise Exception("STOP")
+    print("---------------\n---------------\n-----------\n----------\n")
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)

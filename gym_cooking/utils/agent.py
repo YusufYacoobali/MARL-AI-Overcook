@@ -14,6 +14,12 @@ import navigation_planner.utils as nav_utils
 from utils.core import Counter, Cutboard
 from utils.utils import agent_settings
 
+# Reinforcement learning
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+
 import numpy as np
 import copy
 from termcolor import colored as color
@@ -23,11 +29,6 @@ AgentRepr = namedtuple("AgentRepr", "name location holding")
 
 # Colors for agents.
 COLORS = ['blue', 'magenta', 'yellow', 'green']
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
 
 torch.autograd.set_detect_anomaly(True)
 
@@ -41,11 +42,6 @@ class PolicyNetwork(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return F.softmax(x, dim=-1)
-    
-    # def update_output_size(self, new_output_size):
-    #     # Update the output size of the last layer
-    #     self.fc2 = nn.Linear(64, new_output_size)
-    #     #self.fc1 = nn.Linear(new_output_size, 64)
 
 class RealAgent:
     """Real Agent object that performs task inference and plans."""
@@ -55,12 +51,6 @@ class RealAgent:
         self.name = name
         self.color = id_color
         self.recipes = recipes
-
-        # Define policy network
-        # self.policy_network = PolicyNetwork(input_size=..., output_size=...)  # Define input and output size
-
-        # Define optimizer for policy network
-        #self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.001)
 
         # Bayesian Delegation.
         self.reset_subtasks()
@@ -72,12 +62,20 @@ class RealAgent:
         self.beta = arglist.beta
         self.none_action_prob = 0.5
 
+        # Q-learning parameters
+        self.q_values = ()
+        self.learning_rate = 0.1  
+        self.in_training = True
         self.is_using_reinforcement_learning = False
+        # Proximal Policy Optimization parameters
+        self.states = []
+        self.actions = []
+        self.rewards = []
 
         self.model_type = agent_settings(arglist, name)
         if self.model_type == "up":
             self.priors = 'uniform'
-        elif self.model_type == "rl":
+        elif self.model_type == "ql" or self.model_type == "ppo":
             self.is_using_reinforcement_learning = True
             self.priors = 'spatial'
         else:
@@ -89,16 +87,6 @@ class RealAgent:
                 tau=arglist.tau,
                 cap=arglist.cap,
                 main_cap=arglist.main_cap)
-        
-        # Q-learning parameters
-        self.q_values = ()
-        self.learning_rate = 0.1  
-        self.in_training = True
-
-        self.log_prob = 0
-        self.states = []
-        self.actions = []
-        self.rewards = []
         
     def __str__(self):
         return color(self.name[-1], self.color)
@@ -141,17 +129,20 @@ class RealAgent:
             if self.in_training:
                 self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
                         agent_name=self.name)
-            else: 
-
+            elif self.model_type == "ql":
+                for subtask, q_value in self.q_values.items():
+                    print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
+                max_q_value = float('-inf')
+                self.new_subtask = None
+                for subtask, q_value in self.q_values.items():
+                    if q_value > max_q_value:
+                        max_q_value = q_value
+                        ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT or if val == 0
+                        self.new_subtask = subtask
+                print(f"Chosen action: {self.new_subtask}")
+                self.new_subtask_agent_names = [self.name]
+            elif self.model_type == "ppo": 
                 completion_status_list = [status for status in self.task_completion_status.values()]
-                # Convert completion_status_list to a float tensor with requires_grad=True
-                #input_tensor = torch.tensor([completion_status_list], dtype=torch.float32, requires_grad=True)
-                # subtask_probs = self.policy_network(torch.FloatTensor(input_tensor))
-                # for task, completion_status in self.task_completion_status.items():
-                #     print("Task:", task, "| Completion Status:", completion_status)
-                # print("Subtask Probabilities:", subtask_probs)
-                # subtask_index = torch.argmax(subtask_probs).item()
-                # print("Selected Subtask Index:", subtask_index)
                 state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
                 print("state_tensor Tensor:", state_tensor)
                 # Forward pass through the policy network to get action probabilities
@@ -164,12 +155,11 @@ class RealAgent:
                 for task, completion_status in self.task_completion_status.items():
                     print("Task:", task, "| Completion Status:", completion_status)
                 print("ACTION TO PICK WHEN TRAINING IS DONE ", action_probs)
-
+                ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT
                 # Map the action index to the corresponding subtask string
                 self.new_subtask = list(self.task_completion_status.keys())[best_action_index]
                 self.new_subtask_agent_names = [self.name]
                 print(f"Chosen action: {self.new_subtask}")
-                #raise Exception("STOPPP")
         #non rl is original way
         else: 
              self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
@@ -197,13 +187,15 @@ class RealAgent:
         self.task_completion_status = {task: 0 for task in self.incomplete_subtasks}
         #set up q values in first episode
         if self.is_using_reinforcement_learning and self.in_training and episode == 0:
-            #self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
-            self.size = len(self.incomplete_subtasks)
-            self.policy_network = PolicyNetwork(input_size=self.size, output_size=self.size)  # Define input and output size
-            print("POLICY NETWORK MADE")
-            # Define optimizer for policy network
-            self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.5)
-            print("optimiser MADE")
+            if self.model_type == "ql":
+                self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
+            elif self.model_type == "ppo":
+                self.size = len(self.incomplete_subtasks)
+                self.policy_network = PolicyNetwork(input_size=self.size, output_size=self.size)  # Define input and output size
+                print("POLICY NETWORK MADE")
+                # Define optimizer for policy network
+                self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.5)
+                print("optimiser MADE")
         
         self.delegator = BayesianDelegator(
                 agent_name=self.name,
@@ -243,7 +235,16 @@ class RealAgent:
             color(self.name, self.color)),
             ', '.join(str(t) for t in self.incomplete_subtasks))
         
-        if self.is_using_reinforcement_learning:
+        if self.is_using_reinforcement_learning and self.model_type == "ql":
+            if self.is_subtask_complete(world) and self.in_training == True:
+                self.update_q_values(reward)
+            elif self.is_subtask_complete(world) and self.in_training == False:
+                # Remove the selected subtask from the Q-table
+                if self.subtask is not None:
+                    del self.q_values[self.subtask]
+                    print("OLD SUBTASK DELETED")
+        
+        if self.is_using_reinforcement_learning and self.model_type == "ppo":
             if self.is_subtask_complete(world) and self.in_training == True:
     
                 #self.task_completion_status[self.subtask] = 1
@@ -431,14 +432,14 @@ class RealAgent:
             # Goal state is reached when the number of desired objects has increased.
             self.is_subtask_complete = lambda w: len(w.get_all_object_locs(obj=self.goal_obj)) > self.cur_obj_count
 
-    # def update_q_values(self, reward):
-    #     """Update Q-value for the given subtask based on observed reward."""
-    #     # Update Q-value using Q-learning update rule
-    #     print("AGENT ", self.name)
-    #     print("subtask GIVEN and updating, new q values of ",self.subtask)
-    #     self.q_values[self.subtask] += self.learning_rate * (reward - self.q_values[self.subtask])
-    #     for subtask, q_value in self.q_values.items():
-    #         print(f"Subtask: {subtask}, Q-value: {q_value}")
+    def update_q_values(self, reward):
+        """Update Q-value for the given subtask based on observed reward."""
+        # Update Q-value using Q-learning update rule
+        print("AGENT ", self.name)
+        print("subtask GIVEN and updating, new q values of ",self.subtask)
+        self.q_values[self.subtask] += self.learning_rate * (reward - self.q_values[self.subtask])
+        for subtask, q_value in self.q_values.items():
+            print(f"Subtask: {subtask}, Q-value: {q_value}")
 
 
 class SimAgent:
