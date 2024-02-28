@@ -161,6 +161,9 @@ class RealAgent:
 
                 # Select the action with the highest probability
                 best_action_index = np.argmax(action_probs)
+                for task, completion_status in self.task_completion_status.items():
+                    print("Task:", task, "| Completion Status:", completion_status)
+                print("ACTION TO PICK WHEN TRAINING IS DONE ", action_probs)
 
                 # Map the action index to the corresponding subtask string
                 self.new_subtask = list(self.task_completion_status.keys())[best_action_index]
@@ -195,7 +198,6 @@ class RealAgent:
         #set up q values in first episode
         if self.is_using_reinforcement_learning and self.in_training and episode == 0:
             #self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
-            self.all_tasks = sorted(self.incomplete_subtasks,  key=str)
             self.size = len(self.incomplete_subtasks)
             self.policy_network = PolicyNetwork(input_size=self.size, output_size=self.size)  # Define input and output size
             print("POLICY NETWORK MADE")
@@ -264,10 +266,6 @@ class RealAgent:
         self.actions.append(self.subtask)
         self.rewards.append(reward)
 
-        print("COLLECTED STATE", state)
-        print("COLLECTED ACTION", self.subtask)
-        print("COLLECTED REWARD", reward)
-
     def train(self):
         # Collect experiences
         states, actions, rewards = self.states, self.actions, self.rewards
@@ -282,6 +280,19 @@ class RealAgent:
         action_indices = [list(self.task_completion_status.keys()).index(action) for action in actions]
         actions = torch.tensor(action_indices, dtype=torch.int64)
         rewards = torch.tensor(rewards, dtype=torch.float32)
+
+        completion_status_list = [0 for status in self.task_completion_status.values()]
+        state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
+        print("TRAINING state_tensor Tensor:", state_tensor)
+        for task, completion_status in self.task_completion_status.items():
+                    print("Task:", task, "| Completion Status:", completion_status)
+        # Forward pass through the policy network to get action probabilities
+        with torch.no_grad():  # Disable gradient tracking during inference
+            logits = self.policy_network(state_tensor)
+            action_probs = F.softmax(logits, dim=-1).numpy()
+        print("ACTION PROBS B4 TRAINING ", action_probs)
+        best_action_index = np.argmax(action_probs)
+        print("BEST ACTION ", list(self.task_completion_status.keys())[best_action_index])
         
         # Compute loss and optimize
         loss = self.compute_loss(states, actions, rewards)
@@ -290,10 +301,12 @@ class RealAgent:
         loss.backward()
         self.optimizer.step()
 
-        # # Print the updated parameters of the policy network
-        # for name, param in self.policy_network.named_parameters():
-        #     print(name, param.data)
-
+        with torch.no_grad():  # Disable gradient tracking during inference
+            logits = self.policy_network(state_tensor)
+            action_probs = F.softmax(logits, dim=-1).numpy()
+        print("ACTION PROBS AFTER TRAINING ", action_probs)
+        best_action_index = np.argmax(action_probs)
+        print("BEST ACTION ", list(self.task_completion_status.keys())[best_action_index])
         print("Network updated.")
 
     def compute_loss(self, states, actions, rewards):
@@ -303,56 +316,6 @@ class RealAgent:
         policy_loss = -(log_probs_for_actions * rewards).mean()
         print("Computed loss:", policy_loss.item())  # Print computed loss
         return policy_loss
-
-
-    # def perform_ppo_update(self, reward):
-    #     # Convert completion_status_list to a tensor
-    #     completion_status_list = [status for status in self.task_completion_status.values()]
-    #     input_tensor = torch.tensor([completion_status_list], dtype=torch.float32, requires_grad=True)
-
-    #     # Calculate new action probabilities
-    #     new_action_probs = self.policy_network(input_tensor)
-    #     task_names = list(self.task_completion_status.keys())
-    #     subtask_index = task_names.index(self.subtask)
-
-    #     # Calculate new log probability for the current subtask
-    #     new_log_prob = torch.log(new_action_probs[0, subtask_index])
-
-    #     # Calculate ratio of new and old policy probabilities
-    #     with torch.no_grad():
-    #         ratio = torch.exp(new_log_prob - self.log_prob)
-    #     ratio.requires_grad = True
-
-    #     # Calculate surrogate loss
-    #     epsilon = 1
-    #     surrogate1 = ratio * reward
-    #     clamped_ratio = torch.clamp(ratio.detach(), 1 - epsilon, 1 + epsilon)
-    #     surrogate2 = clamped_ratio * reward
-
-    #     # Calculate surrogate loss
-    #     surrogate_loss = -torch.min(surrogate1, surrogate2)
-
-    #     # Update policy network
-    #     self.optimizer.zero_grad()
-    #     surrogate_loss.backward(retain_graph=True)
-    #     self.optimizer.step()
-
-    #     # Print information for debugging
-    #     print("New Log Probability:", new_log_prob)
-    #     print("Old Log Probability:", self.log_prob)
-    #     print("Surrogate Loss:", surrogate_loss)
-
-    #     # Check gradients of the model parameters
-    #     for name, param in self.policy_network.named_parameters():
-    #         #if param.grad is not None:
-    #         print(name, param.grad)
-
-    #     # Update log probability
-    #     self.log_prob = new_log_prob
-
-    #     # Print updated action probabilities
-    #     new_action_probs = self.policy_network(input_tensor)
-    #     print("AFTER UPDATE New Action Probabilities:", new_action_probs)
 
     def update_subtasks(self, env):
         """Update incomplete subtasks---relevant for Bayesian Delegation."""
