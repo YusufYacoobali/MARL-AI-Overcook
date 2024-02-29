@@ -15,8 +15,8 @@ from utils.core import Counter, Cutboard
 from utils.utils import agent_settings
 
 # Reinforcement learning
+from utils.network import PolicyNetwork
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
@@ -29,19 +29,6 @@ AgentRepr = namedtuple("AgentRepr", "name location holding")
 
 # Colors for agents.
 COLORS = ['blue', 'magenta', 'yellow', 'green']
-
-torch.autograd.set_detect_anomaly(True)
-
-class PolicyNetwork(nn.Module):
-    def __init__(self, input_size, output_size):
-        super(PolicyNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_size, 64)
-        self.fc2 = nn.Linear(64, output_size)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return F.softmax(x, dim=-1)
 
 class RealAgent:
     """Real Agent object that performs task inference and plans."""
@@ -80,7 +67,7 @@ class RealAgent:
             self.priors = 'spatial'
         else:
             self.priors = 'spatial'
-        print("MODEL TYPE " ,self.model_type)
+
         # Navigation planner.
         self.planner = E2E_BRTDP(
                 alpha=arglist.alpha,
@@ -122,48 +109,78 @@ class RealAgent:
 
         # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
-
-        if self.is_using_reinforcement_learning:
-            print("AGENT TRAINING STATUS ", self.in_training)
-            #if rl agent is training, learn from subtasks of delegator, else pick best from learnt tasks
-            if self.in_training:
-                self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
-                        agent_name=self.name)
-            elif self.model_type == "ql":
-                for subtask, q_value in self.q_values.items():
-                    print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
+        # ToDELETE
+        print("AGENT TRAINING STATUS ", self.in_training)
+        # If 
+        if self.is_using_reinforcement_learning and self.in_training == False:
+            self.new_subtask_agent_names = [self.name]
+            if self.model_type == "ql":
                 max_q_value = float('-inf')
-                self.new_subtask = None
+                #self.new_subtask = None
                 for subtask, q_value in self.q_values.items():
                     if q_value > max_q_value:
                         max_q_value = q_value
                         ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT or if val == 0
                         self.new_subtask = subtask
-                print(f"Chosen action: {self.new_subtask}")
-                self.new_subtask_agent_names = [self.name]
             elif self.model_type == "ppo": 
                 completion_status_list = [status for status in self.task_completion_status.values()]
                 state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
-                print("state_tensor Tensor:", state_tensor)
                 # Forward pass through the policy network to get action probabilities
                 with torch.no_grad():  # Disable gradient tracking during inference
                     logits = self.policy_network(state_tensor)
                     action_probs = F.softmax(logits, dim=-1).numpy()  # Convert to numpy array
-
                 # Select the action with the highest probability
                 best_action_index = np.argmax(action_probs)
+                self.new_subtask = list(self.task_completion_status.keys())[best_action_index]
                 for task, completion_status in self.task_completion_status.items():
                     print("Task:", task, "| Completion Status:", completion_status)
                 print("ACTION TO PICK WHEN TRAINING IS DONE ", action_probs)
                 ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT
                 # Map the action index to the corresponding subtask string
-                self.new_subtask = list(self.task_completion_status.keys())[best_action_index]
-                self.new_subtask_agent_names = [self.name]
-                print(f"Chosen action: {self.new_subtask}")
-        #non rl is original way
         else: 
-             self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
-                agent_name=self.name)
+             self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
+        print(f"Chosen action: {self.new_subtask}")
+        # # If rl is being used then select the, learn from subtasks of delegator, else pick best from learnt tasks
+        # if self.is_using_reinforcement_learning:
+        #     print("AGENT TRAINING STATUS ", self.in_training)
+        #     if self.in_training:
+        #         self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
+        #                 agent_name=self.name)
+        #     elif self.model_type == "ql":
+        #         for subtask, q_value in self.q_values.items():
+        #             print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
+        #         max_q_value = float('-inf')
+        #         self.new_subtask = None
+        #         for subtask, q_value in self.q_values.items():
+        #             if q_value > max_q_value:
+        #                 max_q_value = q_value
+        #                 ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT or if val == 0
+        #                 self.new_subtask = subtask
+        #         print(f"Chosen action: {self.new_subtask}")
+        #         self.new_subtask_agent_names = [self.name]
+        #     elif self.model_type == "ppo": 
+        #         completion_status_list = [status for status in self.task_completion_status.values()]
+        #         state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
+        #         print("state_tensor Tensor:", state_tensor)
+        #         # Forward pass through the policy network to get action probabilities
+        #         with torch.no_grad():  # Disable gradient tracking during inference
+        #             logits = self.policy_network(state_tensor)
+        #             action_probs = F.softmax(logits, dim=-1).numpy()  # Convert to numpy array
+
+        #         # Select the action with the highest probability
+        #         best_action_index = np.argmax(action_probs)
+        #         for task, completion_status in self.task_completion_status.items():
+        #             print("Task:", task, "| Completion Status:", completion_status)
+        #         print("ACTION TO PICK WHEN TRAINING IS DONE ", action_probs)
+        #         ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT
+        #         # Map the action index to the corresponding subtask string
+        #         self.new_subtask = list(self.task_completion_status.keys())[best_action_index]
+        #         self.new_subtask_agent_names = [self.name]
+        #         print(f"Chosen action: {self.new_subtask}")
+        # #non rl is original way
+        # else: 
+        #      self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
+        #         agent_name=self.name)
              
         self.plan(copy.copy(obs))
         return self.action
@@ -183,6 +200,9 @@ class RealAgent:
 
     def setup_subtasks(self, env, episode):
         """Initializing subtasks and subtask allocator, Bayesian Delegation."""
+        self.states = []
+        self.actions = []
+        self.rewards = []
         self.incomplete_subtasks = self.get_subtasks(world=env.world)
         self.task_completion_status = {task: 0 for task in self.incomplete_subtasks}
         #set up q values in first episode
@@ -209,9 +229,6 @@ class RealAgent:
         self.subtask = None
         self.subtask_agent_names = []
         self.subtask_complete = False
-        # self.states = []
-        # self.actions = []
-        # self.rewards = []
 
     def refresh_subtasks(self, world, reward):
         """Refresh subtasks---relevant for Bayesian Delegation."""
@@ -259,64 +276,6 @@ class RealAgent:
                 #     del self.q_values[self.subtask]
                 #     print("OLD SUBTASK DELETED")
                 self.task_completion_status[self.subtask] = 1
-                
-    def collect_experience(self, reward):
-        state = [status for status in self.task_completion_status.values()]
-        # Append the current state, action, and reward to their respective lists
-        self.states.append(state)
-        self.actions.append(self.subtask)
-        self.rewards.append(reward)
-
-    def train(self):
-        # Collect experiences
-        states, actions, rewards = self.states, self.actions, self.rewards
-
-        print("Collected Experiences:")
-        for state, action, reward in zip(states, actions, rewards):
-            print(f"For state: {state}, Action: {action}, Reward: {reward}")
-        
-        # Convert to PyTorch tensors
-        states = torch.tensor(states, dtype=torch.float32)
-        # Convert actions to indices based on their position in self.task_completion_status
-        action_indices = [list(self.task_completion_status.keys()).index(action) for action in actions]
-        actions = torch.tensor(action_indices, dtype=torch.int64)
-        rewards = torch.tensor(rewards, dtype=torch.float32)
-
-        completion_status_list = [0 for status in self.task_completion_status.values()]
-        state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
-        print("TRAINING state_tensor Tensor:", state_tensor)
-        for task, completion_status in self.task_completion_status.items():
-                    print("Task:", task, "| Completion Status:", completion_status)
-        # Forward pass through the policy network to get action probabilities
-        with torch.no_grad():  # Disable gradient tracking during inference
-            logits = self.policy_network(state_tensor)
-            action_probs = F.softmax(logits, dim=-1).numpy()
-        print("ACTION PROBS B4 TRAINING ", action_probs)
-        best_action_index = np.argmax(action_probs)
-        print("BEST ACTION ", list(self.task_completion_status.keys())[best_action_index])
-        
-        # Compute loss and optimize
-        loss = self.compute_loss(states, actions, rewards)
-        print("Loss before optimization:", loss.item())  # Print loss before optimization
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-        with torch.no_grad():  # Disable gradient tracking during inference
-            logits = self.policy_network(state_tensor)
-            action_probs = F.softmax(logits, dim=-1).numpy()
-        print("ACTION PROBS AFTER TRAINING ", action_probs)
-        best_action_index = np.argmax(action_probs)
-        print("BEST ACTION ", list(self.task_completion_status.keys())[best_action_index])
-        print("Network updated.")
-
-    def compute_loss(self, states, actions, rewards):
-        logits = self.policy_network(states)
-        log_probs = F.log_softmax(logits, dim=-1)
-        log_probs_for_actions = log_probs.gather(1, actions.unsqueeze(1))
-        policy_loss = -(log_probs_for_actions * rewards).mean()
-        print("Computed loss:", policy_loss.item())  # Print computed loss
-        return policy_loss
 
     def update_subtasks(self, env):
         """Update incomplete subtasks---relevant for Bayesian Delegation."""
@@ -441,6 +400,46 @@ class RealAgent:
         for subtask, q_value in self.q_values.items():
             print(f"Subtask: {subtask}, Q-value: {q_value}")
 
+    def collect_experience(self, reward):
+        state = [status for status in self.task_completion_status.values()]
+        # Append the current state, action, and reward to their respective lists
+        self.states.append(state)
+        self.actions.append(self.subtask)
+        self.rewards.append(reward)
+
+    def train(self):
+        # Collect experiences
+        states, actions, rewards = self.states, self.actions, self.rewards
+
+        print("Collected Experiences:")
+        for state, action, reward in zip(states, actions, rewards):
+            print(f"For state: {state}, Action: {action}, Reward: {reward}")
+        
+        # Convert to PyTorch tensors
+        states = torch.tensor(states, dtype=torch.float32)
+        # Convert actions to indices based on their position in self.task_completion_status
+        action_indices = [list(self.task_completion_status.keys()).index(action) for action in actions]
+        actions = torch.tensor(action_indices, dtype=torch.int64)
+        rewards = torch.tensor(rewards, dtype=torch.float32)
+        
+        # Compute loss and optimize
+        try:
+            loss = self.compute_loss(states, actions, rewards)
+            print("Loss before optimization:", loss.item()) 
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+        except RuntimeError as e:
+            print("The Neural Network had trouble: ", e)
+        print("Network updated.")
+
+    def compute_loss(self, states, actions, rewards):
+        logits = self.policy_network(states)
+        log_probs = F.log_softmax(logits, dim=-1)
+        log_probs_for_actions = log_probs.gather(1, actions.unsqueeze(1))
+        policy_loss = -(log_probs_for_actions * rewards).mean()
+        print("Computed loss:", policy_loss.item())  # Print computed loss
+        return policy_loss
 
 class SimAgent:
     """Simulation agent used in the environment object."""

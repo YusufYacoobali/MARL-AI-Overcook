@@ -21,10 +21,10 @@ def parse_arguments():
     parser = argparse.ArgumentParser("Overcooked 2 argument parser")
 
     # Environment
-    parser.add_argument("--dish", type=str, required=True)
-    parser.add_argument("--num-agents", type=int, required=True)
-    parser.add_argument("--grid-size", type=str, required=True)
-    parser.add_argument("--grid-type", type=str, required=True)
+    parser.add_argument("--dish", type=str, default="SimpleTomato", help="Max number of timesteps to run")
+    parser.add_argument("--num-agents", type=int, required=True, default=2, help="Max number of timesteps to run")
+    parser.add_argument("--grid-size", type=str, default=4, help="Max number of timesteps to run")
+    parser.add_argument("--grid-type", type=str, default="o", help="Max number of timesteps to run")
     parser.add_argument("--max-num-timesteps", type=int, default=100, help="Max number of timesteps to run")
     parser.add_argument("--max-num-subtasks", type=int, default=14, help="Max number of subtasks for recipe")
     parser.add_argument("--seed", type=int, default=1, help="Fix pseudorandom seed")
@@ -46,10 +46,10 @@ def parse_arguments():
     # Models
     # Valid options: `bd` = Bayes Delegation; `up` = Uniform Priors
     # `dc` = Divide & Conquer; `fb` = Fixed Beliefs; `greedy` = Greedy
-    parser.add_argument("--model1", type=str, default=None, help="Model type for agent 1 (bd, up, dc, fb, or greedy)")
-    parser.add_argument("--model2", type=str, default=None, help="Model type for agent 2 (bd, up, dc, fb, or greedy)")
-    parser.add_argument("--model3", type=str, default=None, help="Model type for agent 3 (bd, up, dc, fb, or greedy)")
-    parser.add_argument("--model4", type=str, default=None, help="Model type for agent 4 (bd, up, dc, fb, or greedy)")
+    parser.add_argument("--model1", type=str, default=None, help="Model type for agent 1 (bd, up, dc, fb, greedy, ppo or ql)")
+    parser.add_argument("--model2", type=str, default=None, help="Model type for agent 2 (bd, up, dc, fb, greedy, ppo or ql)")
+    parser.add_argument("--model3", type=str, default=None, help="Model type for agent 3 (bd, up, dc, fb, greedy, ppo or ql)")
+    parser.add_argument("--model4", type=str, default=None, help="Model type for agent 4 (bd, up, dc, fb, greedy, ppo or ql)")
 
     return parser.parse_args()
 
@@ -113,17 +113,15 @@ def main_loop(arglist):
     #train rl agents
     if rl_agents:
         # RL Training parameters
-        num_episodes = 1  # Number of training episodes
-        max_steps_per_episode = int(arglist.grid_size) * 4 # Maximum number of steps per episode
+        num_episodes = 3  
+        max_steps_per_episode = int(arglist.grid_size) * 4 
         
         for episode in range(num_episodes):
-            print(f"Starting episode {episode}")
             obs = env.reset()  # Reset the environment for a new episode
                 
             for step in range(max_steps_per_episode):
                 action_dict = {}
                 for agent in rl_agents:
-                    print("AGENT ", agent.name)
                     action = agent.select_action(obs=obs, episode=episode)
                     action_dict[agent.name] = action
                     print(f"Agent {agent.name} selects action {action}")
@@ -139,27 +137,17 @@ def main_loop(arglist):
                     for agent in rl_agents:
                         if agent.model_type == "ppo":
                             agent.train()
-                            print("AGENT TRAINNNEDDD")
-                    print("Episode finished early. IN steps ", step)
+                            print("Agents finished training on experiences acquired in the episode")
                     break
-           
-    print("TRAINING ENDED")
-    # for agent in rl_agents:
-    #     print("AGENT Q TABLE ", agent.name)
-    #     for subtask, q_value in agent.q_values.items():
-    #             print(f"Subtask: {subtask}, Q-value: {q_value}")
-    #raise Exception("STOP")
-    print("---------------\n---------------\n-----------\n----------\n")
+        print("Training for RL agents has finished")
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
-
+    # Tell all agents that training has concluded
     for agent in rl_agents:
         agent.in_training = False
 
-    #add a env.reset()?
-        # its not running final run, its seeing last episode is done thats why
     obs = env.reset()
     while not env.done():
         action_dict = {}
