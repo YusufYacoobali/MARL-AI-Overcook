@@ -109,79 +109,38 @@ class RealAgent:
 
         # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
-        # ToDELETE
         print("AGENT TRAINING STATUS ", self.in_training)
-        # If 
+        # If agent is using RL and needs inference, then use appropriate model type solution
         if self.is_using_reinforcement_learning and self.in_training == False:
             self.new_subtask_agent_names = [self.name]
+
             if self.model_type == "ql":
                 max_q_value = float('-inf')
-                #self.new_subtask = None
                 for subtask, q_value in self.q_values.items():
                     if q_value > max_q_value:
                         max_q_value = q_value
                         ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT or if val == 0
                         self.new_subtask = subtask
+
             elif self.model_type == "ppo": 
                 completion_status_list = [status for status in self.task_completion_status.values()]
-                state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
-                # Forward pass through the policy network to get action probabilities
+                # Create tensor of the current state of subtasks of the agent
+                state_tensor = torch.tensor(completion_status_list, dtype=torch.float32) 
                 with torch.no_grad():  # Disable gradient tracking during inference
                     logits = self.policy_network(state_tensor)
-                    action_probs = F.softmax(logits, dim=-1).numpy()  # Convert to numpy array
-                # Select the action with the highest probability
+                    action_probs = F.softmax(logits, dim=-1).numpy()  
+                 # Select the action with the highest probability
                 best_action_index = np.argmax(action_probs)
                 self.new_subtask = list(self.task_completion_status.keys())[best_action_index]
                 for task, completion_status in self.task_completion_status.items():
                     print("Task:", task, "| Completion Status:", completion_status)
                 print("ACTION TO PICK WHEN TRAINING IS DONE ", action_probs)
                 ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT
-                # Map the action index to the corresponding subtask string
+                #TODO
+        # If RL agent is training or is not an RL agent, use the original way
         else: 
              self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
         print(f"Chosen action: {self.new_subtask}")
-        # # If rl is being used then select the, learn from subtasks of delegator, else pick best from learnt tasks
-        # if self.is_using_reinforcement_learning:
-        #     print("AGENT TRAINING STATUS ", self.in_training)
-        #     if self.in_training:
-        #         self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
-        #                 agent_name=self.name)
-        #     elif self.model_type == "ql":
-        #         for subtask, q_value in self.q_values.items():
-        #             print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
-        #         max_q_value = float('-inf')
-        #         self.new_subtask = None
-        #         for subtask, q_value in self.q_values.items():
-        #             if q_value > max_q_value:
-        #                 max_q_value = q_value
-        #                 ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT or if val == 0
-        #                 self.new_subtask = subtask
-        #         print(f"Chosen action: {self.new_subtask}")
-        #         self.new_subtask_agent_names = [self.name]
-        #     elif self.model_type == "ppo": 
-        #         completion_status_list = [status for status in self.task_completion_status.values()]
-        #         state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
-        #         print("state_tensor Tensor:", state_tensor)
-        #         # Forward pass through the policy network to get action probabilities
-        #         with torch.no_grad():  # Disable gradient tracking during inference
-        #             logits = self.policy_network(state_tensor)
-        #             action_probs = F.softmax(logits, dim=-1).numpy()  # Convert to numpy array
-
-        #         # Select the action with the highest probability
-        #         best_action_index = np.argmax(action_probs)
-        #         for task, completion_status in self.task_completion_status.items():
-        #             print("Task:", task, "| Completion Status:", completion_status)
-        #         print("ACTION TO PICK WHEN TRAINING IS DONE ", action_probs)
-        #         ##IF ITS INside INCCOMPLETE SUBTASKS THEN DO IT
-        #         # Map the action index to the corresponding subtask string
-        #         self.new_subtask = list(self.task_completion_status.keys())[best_action_index]
-        #         self.new_subtask_agent_names = [self.name]
-        #         print(f"Chosen action: {self.new_subtask}")
-        # #non rl is original way
-        # else: 
-        #      self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
-        #         agent_name=self.name)
-             
         self.plan(copy.copy(obs))
         return self.action
 
@@ -200,22 +159,21 @@ class RealAgent:
 
     def setup_subtasks(self, env, episode):
         """Initializing subtasks and subtask allocator, Bayesian Delegation."""
+        # Lists are used for collecting experiences in episodes for PPO
         self.states = []
         self.actions = []
         self.rewards = []
         self.incomplete_subtasks = self.get_subtasks(world=env.world)
         self.task_completion_status = {task: 0 for task in self.incomplete_subtasks}
-        #set up q values in first episode
+        # Set up important variables in the first training episode
         if self.is_using_reinforcement_learning and self.in_training and episode == 0:
             if self.model_type == "ql":
                 self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
             elif self.model_type == "ppo":
-                self.size = len(self.incomplete_subtasks)
-                self.policy_network = PolicyNetwork(input_size=self.size, output_size=self.size)  # Define input and output size
-                print("POLICY NETWORK MADE")
-                # Define optimizer for policy network
-                self.optimizer = optim.Adam(self.policy_network.parameters(), lr=0.5)
-                print("optimiser MADE")
+                size = len(self.incomplete_subtasks)
+                # Create the policy network along with its optimizer using number of subtasks as its size
+                self.policy_network = PolicyNetwork(input_size=size, output_size=size)  
+                self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.learning_rate)
         
         self.delegator = BayesianDelegator(
                 agent_name=self.name,
