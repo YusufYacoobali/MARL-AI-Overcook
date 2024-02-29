@@ -58,6 +58,7 @@ class RealAgent:
         self.states = []
         self.actions = []
         self.rewards = []
+        self.task_length = 0
 
         self.model_type = agent_settings(arglist, name)
         if self.model_type == "up":
@@ -109,6 +110,7 @@ class RealAgent:
 
         # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
+        self.task_length += 1
         print("\nAgent Is Training: ", self.in_training)
         # If agent is using RL and needs inference, then use appropriate model type solution
         if self.is_using_reinforcement_learning and self.in_training == False and self.task_length <= max_steps:
