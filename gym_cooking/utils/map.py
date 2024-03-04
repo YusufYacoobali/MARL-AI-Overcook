@@ -11,7 +11,7 @@ class BaseMap:
         """
         try:
             self.size = int(arglist.grid_size)
-            if not 5 <= self.size <= 20:
+            if not 4 <= self.size <= 20:
                 raise ValueError("Error: Invalid grid size. Use a number greater than 5 and less than 20.")
         except ValueError:
             raise ValueError("Error: Invalid grid size. Please provide a valid number greater than 5 and less than 20.")
@@ -19,8 +19,8 @@ class BaseMap:
         self.file_path = file_path
         self.object_chars = "tlp----/*"
         self.layout = None
-        self.population_size = 20
-        self.num_generations = 13
+        self.population_size = 100
+        self.num_generations = 80
         self.population = None
         random.seed()
 
@@ -763,6 +763,6 @@ class RandomMap(BaseMap):
         """
         best_score = self.size * self.size * 0.3
         empty_spaces = sum(row.count(' ') for row in map)
-        difference = abs(empty_spaces - best_score)
+        difference = abs(empty_spaces - best_score * (self.size*0.2))
         score = best_score - difference
         return score,0

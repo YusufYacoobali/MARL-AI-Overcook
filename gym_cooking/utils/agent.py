@@ -14,6 +14,12 @@ import navigation_planner.utils as nav_utils
 from utils.core import Counter, Cutboard
 from utils.utils import agent_settings
 
+# Reinforcement learning
+from utils.network import PolicyNetwork
+import torch
+import torch.optim as optim
+import torch.nn.functional as F
+
 import numpy as np
 import copy
 from termcolor import colored as color
@@ -23,7 +29,6 @@ AgentRepr = namedtuple("AgentRepr", "name location holding")
 
 # Colors for agents.
 COLORS = ['blue', 'magenta', 'yellow', 'green']
-
 
 class RealAgent:
     """Real Agent object that performs task inference and plans."""
@@ -44,28 +49,32 @@ class RealAgent:
         self.beta = arglist.beta
         self.none_action_prob = 0.5
 
+        # Q-learning parameters
+        self.q_values = ()
+        self.learning_rate = 0.1  
+        self.in_training = True
         self.is_using_reinforcement_learning = False
+        # Proximal Policy Optimization parameters
+        self.states = []
+        self.actions = []
+        self.rewards = []
+        self.task_length = 0
 
         self.model_type = agent_settings(arglist, name)
         if self.model_type == "up":
             self.priors = 'uniform'
-        elif self.model_type == "rl":
+        elif self.model_type == "ql" or self.model_type == "ppo":
             self.is_using_reinforcement_learning = True
             self.priors = 'spatial'
         else:
             self.priors = 'spatial'
-        print("MODEL TYPE " ,self.model_type)
+
         # Navigation planner.
         self.planner = E2E_BRTDP(
                 alpha=arglist.alpha,
                 tau=arglist.tau,
                 cap=arglist.cap,
                 main_cap=arglist.main_cap)
-        
-        # Q-learning parameters
-        self.q_values = ()
-        self.learning_rate = 0.1  
-        self.in_training = True
         
     def __str__(self):
         return color(self.name[-1], self.color)
@@ -89,7 +98,7 @@ class RealAgent:
             return 'None'
         return self.holding.full_name
 
-    def select_action(self, obs, episode):
+    def select_action(self, obs, episode, max_steps):
         """Return best next action for this agent given observations."""
         sim_agent = list(filter(lambda x: x.name == self.name, obs.sim_agents))[0]
         self.location = sim_agent.location
@@ -101,30 +110,53 @@ class RealAgent:
 
         # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
-
-        if self.is_using_reinforcement_learning:
-            print("AGENT TRAINING STATUS ", self.in_training)
-            #if rl agent is training, learn from subtasks of delegator, else pick best from learnt tasks
-            if self.in_training:
-                self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
-                        agent_name=self.name)
-            else: 
-                for subtask, q_value in self.q_values.items():
-                    print(f"PICKING BEST Subtask: {subtask}, Q-value: {q_value}")
-
+        self.task_length += 1
+        #print("\nAgent Is Training: ", self.in_training)
+        # If agent is using RL and needs inference, then use appropriate model type solution
+        if self.is_using_reinforcement_learning and self.in_training == False and self.task_length <= max_steps:
+            self.new_subtask_agent_names = [self.name]
+            #print("current task length, step: ", self.task_length)
+            if self.model_type == "ql":
                 max_q_value = float('-inf')
-                self.new_subtask = None
                 for subtask, q_value in self.q_values.items():
                     if q_value > max_q_value:
                         max_q_value = q_value
                         self.new_subtask = subtask
-                print(f"Chosen action: {self.new_subtask}")
-                self.new_subtask_agent_names = [self.name]
-        #non rl is original way
+                # If it doesnt know next best move, rely on bayesian delegation
+                if max_q_value == 0:
+                        self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
+
+            elif self.model_type == "ppo": 
+                # Create tensor of the current state of subtasks of the agent
+                completion_status_list = [status for status in self.task_completion_status.values()]
+                state_tensor = torch.tensor(completion_status_list, dtype=torch.float32) 
+                # Gradient calculation not needed for inference
+                with torch.no_grad():  
+                    logits = self.policy_network(state_tensor)
+                    action_probs = F.softmax(logits, dim=-1).numpy()  
+
+                 # Select the action with the highest probability
+                best_action_index = np.argmax(action_probs)
+                task = list(self.task_completion_status.keys())[best_action_index]
+                print("CHECKING TASK ", task)
+                if task in self.incomplete_subtasks:
+                    self.new_subtask = task
+                else:
+                    # If new task is already complete, find next task with next highest probability
+                    print("TRYING TO FIND NEW TASK WHICH IS INCOMPLETE")
+                    for i in range(best_action_index + 1, len(action_probs)):
+                        next_task = list(self.task_completion_status.keys())[i]
+                        print("SEEING task ", next_task)
+                        if next_task in self.incomplete_subtasks:
+                            self.new_subtask = next_task
+                            print("NEW TASK  FOUND ", next_task)
+                            break
+                
+        # If RL agent is training or is not an RL agent, use the original way
         else: 
-             self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(
-                agent_name=self.name)
-             
+            print("GONE ON TOO LONG, step: ", self.task_length)
+            self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
+        print(f"Chosen action: {self.new_subtask}")
         self.plan(copy.copy(obs))
         return self.action
 
@@ -143,10 +175,22 @@ class RealAgent:
 
     def setup_subtasks(self, env, episode):
         """Initializing subtasks and subtask allocator, Bayesian Delegation."""
+        # Lists are used for collecting experiences in episodes for PPO
+        self.states = []
+        self.actions = []
+        self.rewards = []
         self.incomplete_subtasks = self.get_subtasks(world=env.world)
-        #set up q values in first episode
+        self.task_completion_status = {task: 0 for task in self.incomplete_subtasks}
+        # Set up important variables in the first training episode
         if self.is_using_reinforcement_learning and self.in_training and episode == 0:
-            self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
+            if self.model_type == "ql":
+                self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
+            elif self.model_type == "ppo":
+                size = len(self.incomplete_subtasks)
+                # Create the policy network along with its optimizer using number of subtasks as its size
+                self.policy_network = PolicyNetwork(input_size=size, output_size=size)  
+                self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.learning_rate)
+        
         self.delegator = BayesianDelegator(
                 agent_name=self.name,
                 all_agent_names=env.get_agent_names(),
@@ -172,24 +216,49 @@ class RealAgent:
             color(self.name, self.color),
             self.subtask, self.is_subtask_complete(world),
             self.planner.subtask, self.planner.goal_obj))
-        
-        if self.is_using_reinforcement_learning:
-            if self.is_subtask_complete(world) and self.in_training == True:
-                self.update_q_values(reward)
-            elif self.is_subtask_complete(world) and self.in_training == False:
-                # Remove the selected subtask from the Q-table
-                if self.subtask is not None:
-                    del self.q_values[self.subtask]
-                    print("OLD SUBTASK DELETED")
 
         # Refresh for incomplete subtasks.
         if self.subtask_complete:
             if self.subtask in self.incomplete_subtasks:
                 self.incomplete_subtasks.remove(self.subtask)
                 self.subtask_complete = True
+                self.task_length = 0
         print('{} incomplete subtasks:'.format(
             color(self.name, self.color)),
             ', '.join(str(t) for t in self.incomplete_subtasks))
+        
+        if self.is_using_reinforcement_learning:
+            if self.model_type == "ql":
+                if self.subtask_complete:
+                    if self.in_training:
+                        self.update_q_values(reward)
+                    else:
+                        if self.subtask is not None:
+                            del self.q_values[self.subtask]
+                            print("OLD SUBTASK DELETED")
+            elif self.model_type == "ppo":
+                if self.subtask_complete:
+                    if self.in_training:
+                        print("UPDATING EXPERIENCES")
+                        self.collect_experience(reward=reward)
+                    self.task_completion_status[self.subtask] = 1
+        
+        # if self.is_using_reinforcement_learning and self.model_type == "ql":
+        #     if self.is_subtask_complete(world) and self.in_training == True:
+        #         self.update_q_values(reward)
+        #     elif self.is_subtask_complete(world) and self.in_training == False:
+        #         # Remove the selected subtask from the Q-table
+        #         if self.subtask is not None:
+        #             del self.q_values[self.subtask]
+        #             print("OLD SUBTASK DELETED")
+        
+        # if self.is_using_reinforcement_learning and self.model_type == "ppo":
+        #     if self.is_subtask_complete(world) and self.in_training == True:
+        #         print("UPDATING EXPERIENCES")
+        #         self.collect_experience(reward=reward)
+        #         self.task_completion_status[self.subtask] = 1
+        #     elif self.is_subtask_complete(world) and self.in_training == False:
+        #         self.task_completion_status[self.subtask] = 1
 
     def update_subtasks(self, env):
         """Update incomplete subtasks---relevant for Bayesian Delegation."""
@@ -241,7 +310,10 @@ class RealAgent:
                     probs.append(self.none_action_prob)
                 else:
                     probs.append((1.0-self.none_action_prob)/(len(actions)-1))
-                    #probs dont add up to 1 error here
+            total_prob = sum(probs)
+            if total_prob != 1.0:
+                probs = [prob / total_prob for prob in probs]
+                probs[-1] += 1.0 - sum(probs)
             self.action = actions[np.random.choice(len(actions), p=probs)]
         # Otherwise, plan accordingly.
         else:
@@ -302,13 +374,53 @@ class RealAgent:
 
     def update_q_values(self, reward):
         """Update Q-value for the given subtask based on observed reward."""
-        # Update Q-value using Q-learning update rule
-        print("AGENT ", self.name)
-        print("subtask GIVEN and updating, new q values of ",self.subtask)
         self.q_values[self.subtask] += self.learning_rate * (reward - self.q_values[self.subtask])
-        for subtask, q_value in self.q_values.items():
-            print(f"Subtask: {subtask}, Q-value: {q_value}")
 
+    def collect_experience(self, reward):
+        """Collect experience from the current completed subtask to be used in training later on."""
+        state = [status for status in self.task_completion_status.values()]
+        self.states.append(state)
+        self.actions.append(self.subtask)
+        self.rewards.append(reward)
+
+    def train(self):
+        """
+        Train the agent using collected experiences. Experiences are turned into tensors so the policy can use them
+        The losses are computed and the neural network's weights and bias are then adjusted accordingly
+        """
+        # Retrieve training data 
+        states, actions, rewards = self.states, self.actions, self.rewards
+        # Convert to PyTorch tensors
+        states = torch.tensor(states, dtype=torch.float32)
+        # Convert actions to indices based on ordering of tasks
+        action_indices = [list(self.task_completion_status.keys()).index(action) for action in actions]
+        actions = torch.tensor(action_indices, dtype=torch.int64)
+        rewards = torch.tensor(rewards, dtype=torch.float32)
+        
+        # Compute loss and optimize
+        try:
+            loss = self.compute_loss(states, actions, rewards)
+            # Clears previous gradients for fresh new data
+            self.optimizer.zero_grad()
+            # Calculates direction and magnitude of new adjustments as well as calculating gradient
+            loss.backward()
+            # Uses above to update the neural network's weights to get closer to optimal policy
+            self.optimizer.step()
+        except RuntimeError as e:
+            print("The Neural Network had trouble: ", e)
+        print("Policy Network updated.")
+
+    def compute_loss(self, states, actions, rewards):
+        """
+        Compute the loss for training the policy network. 
+        Policy gives probabilities which are adjusted according to actions and rewards at those states
+        """
+        # Retrieve probability of 
+        logits = self.policy_network(states)
+        log_probs = F.log_softmax(logits, dim=-1)
+        log_probs_for_actions = log_probs.gather(1, actions.unsqueeze(1))
+        policy_loss = -(log_probs_for_actions * rewards).mean()
+        return policy_loss
 
 class SimAgent:
     """Simulation agent used in the environment object."""
