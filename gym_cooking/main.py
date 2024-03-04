@@ -109,10 +109,15 @@ def main_loop(arglist):
 
     # Training loop for RL agents
     if rl_agents:
+
+        for agent in rl_agents:
+            agent.in_training = True
+
         num_episodes = int(arglist.eps)
         max_steps_per_episode = int(arglist.grid_size) * 4 
         for episode in range(num_episodes):
             # Reset the environment for a new episode
+            print("Episode: ", episode)
             obs = env.reset()  
             for step in range(max_steps_per_episode):
                 action_dict = {}

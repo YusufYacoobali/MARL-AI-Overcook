@@ -52,7 +52,7 @@ class RealAgent:
         # Q-learning parameters
         self.q_values = ()
         self.learning_rate = 0.1  
-        self.in_training = True
+        self.in_training = False
         self.is_using_reinforcement_learning = False
         # Proximal Policy Optimization parameters
         self.states = []
@@ -111,11 +111,10 @@ class RealAgent:
         # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
         self.task_length += 1
-        #print("\nAgent Is Training: ", self.in_training)
+        print("\nAgent Is Training: ", self.in_training)
         # If agent is using RL and needs inference, then use appropriate model type solution
         if self.is_using_reinforcement_learning and self.in_training == False and self.task_length <= max_steps:
             self.new_subtask_agent_names = [self.name]
-            #print("current task length, step: ", self.task_length)
             if self.model_type == "ql":
                 max_q_value = float('-inf')
                 for subtask, q_value in self.q_values.items():
@@ -138,23 +137,18 @@ class RealAgent:
                  # Select the action with the highest probability
                 best_action_index = np.argmax(action_probs)
                 task = list(self.task_completion_status.keys())[best_action_index]
-                print("CHECKING TASK ", task)
                 if task in self.incomplete_subtasks:
                     self.new_subtask = task
                 else:
                     # If new task is already complete, find next task with next highest probability
-                    print("TRYING TO FIND NEW TASK WHICH IS INCOMPLETE")
                     for i in range(best_action_index + 1, len(action_probs)):
                         next_task = list(self.task_completion_status.keys())[i]
-                        print("SEEING task ", next_task)
                         if next_task in self.incomplete_subtasks:
                             self.new_subtask = next_task
-                            print("NEW TASK  FOUND ", next_task)
                             break
                 
         # If RL agent is training or is not an RL agent, use the original way
         else: 
-            print("GONE ON TOO LONG, step: ", self.task_length)
             self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
         print(f"Chosen action: {self.new_subtask}")
         self.plan(copy.copy(obs))
@@ -235,30 +229,11 @@ class RealAgent:
                     else:
                         if self.subtask is not None:
                             del self.q_values[self.subtask]
-                            print("OLD SUBTASK DELETED")
             elif self.model_type == "ppo":
                 if self.subtask_complete:
                     if self.in_training:
-                        print("UPDATING EXPERIENCES")
                         self.collect_experience(reward=reward)
                     self.task_completion_status[self.subtask] = 1
-        
-        # if self.is_using_reinforcement_learning and self.model_type == "ql":
-        #     if self.is_subtask_complete(world) and self.in_training == True:
-        #         self.update_q_values(reward)
-        #     elif self.is_subtask_complete(world) and self.in_training == False:
-        #         # Remove the selected subtask from the Q-table
-        #         if self.subtask is not None:
-        #             del self.q_values[self.subtask]
-        #             print("OLD SUBTASK DELETED")
-        
-        # if self.is_using_reinforcement_learning and self.model_type == "ppo":
-        #     if self.is_subtask_complete(world) and self.in_training == True:
-        #         print("UPDATING EXPERIENCES")
-        #         self.collect_experience(reward=reward)
-        #         self.task_completion_status[self.subtask] = 1
-        #     elif self.is_subtask_complete(world) and self.in_training == False:
-        #         self.task_completion_status[self.subtask] = 1
 
     def update_subtasks(self, env):
         """Update incomplete subtasks---relevant for Bayesian Delegation."""
