@@ -86,12 +86,8 @@ def initialize_agents(arglist):
 
     return real_agents
 
-def check_parameters(arglist):
-    pass
-
 def main_loop(arglist):
 
-    check_parameters(arglist)
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
     map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)

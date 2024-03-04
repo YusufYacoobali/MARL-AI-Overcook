@@ -111,11 +111,11 @@ class RealAgent:
         # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
         self.task_length += 1
-        print("\nAgent Is Training: ", self.in_training)
+        #print("\nAgent Is Training: ", self.in_training)
         # If agent is using RL and needs inference, then use appropriate model type solution
         if self.is_using_reinforcement_learning and self.in_training == False and self.task_length <= max_steps:
             self.new_subtask_agent_names = [self.name]
-            print("current task length, step: ", self.task_length)
+            #print("current task length, step: ", self.task_length)
             if self.model_type == "ql":
                 max_q_value = float('-inf')
                 for subtask, q_value in self.q_values.items():
