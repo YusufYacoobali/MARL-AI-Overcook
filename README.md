@@ -11,6 +11,7 @@ Contents:
 - [Usage](#usage)
 - [Environments and Recipes](docs/environments.md)
 - [Design and Customization](docs/design.md)
+- [Alterations](#alterations)
 
 ## Introduction
 
@@ -144,3 +145,15 @@ Results for homogenous teams (self-play experiments):
 
 Results for heterogeneous teams (ad-hoc experiments):
 ![heatmaps](images/heatmaps.png)
+
+## Alterations
+
+This section outlines where changes were made:
+
+- map.py was added
+  This holds all the code for the map generation
+- network.py was added
+  This is a neural network used for when agents select the PPO method
+
+- Libraries in the setup file were added
+  This includes important libraries used like PyTorch
