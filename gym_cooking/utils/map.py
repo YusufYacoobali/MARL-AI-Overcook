@@ -763,6 +763,6 @@ class RandomMap(BaseMap):
         """
         best_score = self.size * self.size * 0.3
         empty_spaces = sum(row.count(' ') for row in map)
-        difference = abs(empty_spaces - best_score * (self.size*0.2))
+        difference = abs(empty_spaces - best_score * (self.size*0.35))
         score = best_score - difference
         return score,0

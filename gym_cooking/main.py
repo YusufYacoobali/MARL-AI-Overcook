@@ -25,7 +25,7 @@ def parse_arguments():
     parser.add_argument("--num-agents", type=int, required=True, default=2, help="The number of agents wanted")
     parser.add_argument("--grid-size", type=str, default=4, help="The size of the map wanted")
     parser.add_argument("--grid-type", type=str, default="o", help="The type of map to generate")
-    parser.add_argument("--eps", type=int, default=1, help="Number of training episodes to run")
+    parser.add_argument("--eps", type=int, default=3, help="Number of training episodes to run")
     parser.add_argument("--max-num-timesteps", type=int, default=100, help="Max number of timesteps to run")
     parser.add_argument("--max-num-subtasks", type=int, default=14, help="Max number of subtasks for recipe")
     parser.add_argument("--seed", type=int, default=1, help="Fix pseudorandom seed")

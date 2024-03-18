@@ -10,10 +10,6 @@ from itertools import permutations, product, combinations
 import scipy as sp
 import numpy as np
 import copy
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import numpy as np
 
 SubtaskAllocation = namedtuple("SubtaskAllocation", "subtask subtask_agent_names")
@@ -42,8 +38,6 @@ class BayesianDelegator(Delegator):
         self.priors = 'uniform' if model_type == 'up' else 'spatial'
         self.planner = planner
         self.none_action_prob = none_action_prob
-        #self.grid_size = grid_size
-        #self.cur_map = cur_map
 
     def should_reset_priors(self, obs, incomplete_subtasks):
         """Returns whether priors should be reset.
@@ -77,8 +71,6 @@ class BayesianDelegator(Delegator):
             probs = self.add_greedy_subtasks()
         elif self.model_type == "dc":
             probs = self.add_dc_subtasks()
-        # elif self.model_type == "rl":
-        #     probs = self.add_rl_subtasks()
         else:
             probs = self.add_subtasks()
         return probs
@@ -425,7 +417,6 @@ class BayesianDelegator(Delegator):
         return SubtaskAllocDistribution(subtask_allocs)
 
     def select_subtask(self, agent_name):
-        #SUBTASK DECIDED HERE
         """Return subtask and subtask_agent_names for agent with agent_name
         with max. probability."""
         max_subtask_alloc = self.probs.get_max()
@@ -489,11 +480,3 @@ class BayesianDelegator(Delegator):
                     factor=update)
             print("UPDATING: subtask_alloc {} by {}".format(subtask_alloc, update))
         self.probs.normalize()
-
-def print_map(map):
-        """
-        Used for debugguing purposes
-        Parameters: map - the map to be printed
-        """
-        for row in map:
-            print(''.join(row))
