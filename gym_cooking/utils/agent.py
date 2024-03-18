@@ -54,6 +54,7 @@ class RealAgent:
         self.learning_rate = 0.1  
         self.in_training = False
         self.is_using_reinforcement_learning = False
+        self.epsilon = 0.5
         # Proximal Policy Optimization parameters
         self.states = []
         self.actions = []
@@ -146,8 +147,44 @@ class RealAgent:
                         if next_task in self.incomplete_subtasks:
                             self.new_subtask = next_task
                             break
-                
-        # If RL agent is training or is not an RL agent, use the original way
+        
+        elif self.is_using_reinforcement_learning and self.in_training == True and self.task_length <= max_steps:
+            self.new_subtask_agent_names = [self.name]
+            # Epsilon-greedy exploration
+            if np.random.rand() < self.epsilon:
+                # Choose a random action
+                print("PICKING RANDOM ACTION-------------------------------------------------------------------------------------")
+                self.new_subtask = np.random.choice(self.incomplete_subtasks)
+            elif self.model_type == "ql": 
+                print("PICKING BEST LEAARNT ACTION-------------------------------------------------------------------------------------")
+                max_q_value = float('-inf')
+                for subtask, q_value in self.q_values.items():
+                    if q_value > max_q_value:
+                        max_q_value = q_value
+                        self.new_subtask = subtask
+            elif self.model_type == "ppo": 
+                print("PICKING BEST LEAARNT ACTION-------------------------------------------------------------------------------------")
+                # Create tensor of the current state of subtasks of the agent
+                completion_status_list = [status for status in self.task_completion_status.values()]
+                state_tensor = torch.tensor(completion_status_list, dtype=torch.float32) 
+                # Gradient calculation not needed for inference
+                with torch.no_grad():  
+                    logits = self.policy_network(state_tensor)
+                    action_probs = F.softmax(logits, dim=-1).numpy()  
+
+                 # Select the action with the highest probability
+                best_action_index = np.argmax(action_probs)
+                task = list(self.task_completion_status.keys())[best_action_index]
+                if task in self.incomplete_subtasks:
+                    self.new_subtask = task
+                else:
+                    # If new task is already complete, find next task with next highest probability
+                    for i in range(best_action_index + 1, len(action_probs)):
+                        next_task = list(self.task_completion_status.keys())[i]
+                        if next_task in self.incomplete_subtasks:
+                            self.new_subtask = next_task
+                            break
+        # If agents are not using RL, use the original way
         else: 
             self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
         print(f"Chosen action: {self.new_subtask}")
@@ -222,6 +259,8 @@ class RealAgent:
             ', '.join(str(t) for t in self.incomplete_subtasks))
         
         if self.is_using_reinforcement_learning:
+            # Used to retrieve rewards for the episode
+            self.rewards.append(reward)
             if self.model_type == "ql":
                 if self.subtask_complete:
                     if self.in_training:
@@ -356,7 +395,7 @@ class RealAgent:
         state = [status for status in self.task_completion_status.values()]
         self.states.append(state)
         self.actions.append(self.subtask)
-        self.rewards.append(reward)
+        #self.rewards.append(reward)
 
     def train(self):
         """

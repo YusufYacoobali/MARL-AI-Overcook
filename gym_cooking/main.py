@@ -15,7 +15,8 @@ import argparse
 from collections import namedtuple
 
 import gym
-
+import matplotlib.pyplot as plt
+from scipy.stats import linregress
 
 def parse_arguments():
     parser = argparse.ArgumentParser("Overcooked 2 argument parser")
@@ -25,7 +26,7 @@ def parse_arguments():
     parser.add_argument("--num-agents", type=int, required=True, default=2, help="The number of agents wanted")
     parser.add_argument("--grid-size", type=str, default=4, help="The size of the map wanted")
     parser.add_argument("--grid-type", type=str, default="o", help="The type of map to generate")
-    parser.add_argument("--eps", type=int, default=3, help="Number of training episodes to run")
+    parser.add_argument("--eps", type=int, default=2, help="Number of training episodes to run")
     parser.add_argument("--max-num-timesteps", type=int, default=100, help="Max number of timesteps to run")
     parser.add_argument("--max-num-subtasks", type=int, default=14, help="Max number of subtasks for recipe")
     parser.add_argument("--seed", type=int, default=1, help="Fix pseudorandom seed")
@@ -53,7 +54,6 @@ def parse_arguments():
     parser.add_argument("--model4", type=str, default=None, help="Model type for agent 4 (bd, up, dc, fb, greedy, ppo or ql)")
 
     return parser.parse_args()
-
 
 def fix_seed(seed):
     np.random.seed(seed)
@@ -113,11 +113,13 @@ def main_loop(arglist):
         for agent in rl_agents:
             agent.in_training = True
 
+        episode_rewards = []
         num_episodes = int(arglist.eps)
         max_steps_per_episode = int(arglist.grid_size) * 4 
         for episode in range(num_episodes):
             # Reset the environment for a new episode
             print("Episode: ", episode)
+            episode_reward = 0
             obs = env.reset()  
             for step in range(max_steps_per_episode):
                 action_dict = {}
@@ -138,8 +140,29 @@ def main_loop(arglist):
                         if agent.model_type == "ppo":
                             agent.train()
                             print("Agents finished training on experiences acquired in the episode")
+                        # Collect total rewards for the episode
+                        episode_reward += sum(agent.rewards)
+                    print(f"For episode {episode}, reward was {episode_reward}")
                     break
+
+            episode_rewards.append(episode_reward)
+
         print("Training for RL agents has finished")
+        print(range(1, num_episodes))
+        print(episode_rewards)
+        # Fit a linear regression line to the data
+        slope, intercept, _, _, _ = linregress(range(1, num_episodes + 1), episode_rewards)
+        regression_line = slope * np.arange(1, num_episodes + 1) + intercept
+        # Plotting both the raw rewards and the regression line over episodes
+        plt.plot(range(1, num_episodes + 1), episode_rewards, label='Rewards per episode')
+        plt.plot(range(1, num_episodes + 1), regression_line, label='Line of best fit', color='red')
+        plt.xlabel('Episode')
+        plt.ylabel('Total Reward')
+        plt.title('Total Reward per Episode')
+        plt.grid(True)
+
+        plt.legend()
+        plt.show()
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
