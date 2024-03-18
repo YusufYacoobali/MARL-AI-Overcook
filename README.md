@@ -91,8 +91,10 @@ The `<model name>` are the names of models described in the paper. Specifically 
 - `bd` to run Bayesian Delegation,
 - `up` for Uniform Priors,
 - `dc` for Divide & Conquer,
-- `fb` for Fixed Beliefs, and
-- `greedy` for Greedy.
+- `fb` for Fixed Beliefs,
+- `greedy` for Greedy,
+- `ql` for Q-Learning, and
+- `ppo` for Proximal Policy Optimization.
 
 For example, running the salad recipe with 2 agents using Q-Learning with 5 episodes to train looks like:
 `python3 main.py --dish Salad --num-agents 2 --model1 ql --model2 ql --grid-size 8 --grid-type o --eps 5 --record`
