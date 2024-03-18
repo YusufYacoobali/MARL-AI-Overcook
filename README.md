@@ -20,12 +20,6 @@ Contents:
     <img src="images/complete2.gif" width=260></img>
 </p>
 
-<!-- <p align="center">
-    <img src="images/2_open_salad.gif" width=260></img>
-    <img src="images/2_partial_tl.gif" width=260></img>
-    <img src="images/2_full_salad.gif" width=260></img>
-</p> -->
-
 This repository has been adapted from the original to include map generation which accounts for a multi-agent setting as well as implementing new ways of searching using Reinforcement Learning through techniques such as Q-Learning and Proximal Policy Optimization to see if it performs better than the proposed Bayesian Delegation. The following is what the original repository describes of the proposed Bayesian Delegation method:
 
 Collaboration requires agents to coordinate their behavior on the fly, sometimes cooperating to solve a single task together and other times dividing it up into sub-tasks to work on in parallel. Underlying the human ability to collaborate is theory-of-mind, the ability to infer the hidden mental states that drive others to act. Here, we develop Bayesian Delegation, a decentralized multi-agent learning mechanism with these abilities. Bayesian Delegation enables agents to rapidly infer the hidden intentions of others by inverse planning. We test Bayesian Delegation in a suite of multi-agent Markov decision processes inspired by cooking problems. On these tasks, agents with Bayesian Delegation coordinate both their high-level plans (e.g. what sub-task they should work on) and their low-level actions (e.g. avoiding getting in each other’s way). In a self-play evaluation, Bayesian Delegation outperforms alternative algorithms. Bayesian Delegation is also a capable ad-hoc collaborator and successfully coordinates with other agent types even in the absence of prior experience. Finally, in a behavioral experiment, we show that Bayesian Delegation makes inferences similar to human observers about the intent of others. Together, these results demonstrate the power of Bayesian Delegation for decentralized multi-agent collaboration.
@@ -46,8 +40,6 @@ Collaboration requires agents to coordinate their behavior on the fly, sometimes
 }
 ``` -->
 
-<!-- git clone https://github.com/rosewang2008/gym-cooking.git -->
-
 ## Installation
 
 You can install the dependencies with `pip3`. It is recommended that these are installed in a virtual environment:
@@ -65,12 +57,6 @@ All experiments have been run with `python3`!
 Here, we discuss how to run a single experiment, run our code in manual mode, and re-produce results in our paper. For information on customizing environments, observation/action spaces, and other details, please refer to our section on [Design and Customization](docs/design.md)
 
 For the code below, make sure that you are in **gym-cooking/gym_cooking/**. This means, you should be able to see the file `main.py` in your current directory.
-
-<!-- <p align="center">
-    <img src="images/2_open.png" width=260></img>
-    <img src="images/3_partial.png" width=260></img>
-    <img src="images/4_full.png" width=260></img>
-</p> -->
 
 <p align="center">
     <img src="images/mandatory.png" width=260></img>
