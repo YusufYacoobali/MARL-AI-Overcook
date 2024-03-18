@@ -151,9 +151,15 @@ Results for heterogeneous teams (ad-hoc experiments):
 This section outlines where changes were made:
 
 - map.py was added.
-  This holds all the code for the map generation
+  This holds all the code for the map generation.
+
 - network.py was added.
-  This is a neural network used for when agents select the PPO method
+  This is a neural network used for when agents select the PPO method.
+
+- agents.py was modified.
+  The implementation for adding the two additional methods, Q-Learning and PPO, were carried out. The changes include lines 52-61, 66-68, 113-153, 173-186, 224-236, 350-398.
+- main.py was modified.
+  A training loop was added if the agents have a Reinforcement Learning method selected. In addition to this, new input parameters were added and some were removed. Furthermore integration of the map generation is also included in this file. The changes include lines 24-28, 93-149.
 
 - Libraries in the setup file were added.
   This includes important libraries used like PyTorch
