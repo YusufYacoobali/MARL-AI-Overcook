@@ -148,7 +148,7 @@ class RealAgent:
                             self.new_subtask = next_task
                             break
         
-        elif self.is_using_reinforcement_learning and self.in_training == True and self.task_length <= max_steps:
+        elif self.is_using_reinforcement_learning and self.in_training == True:
             self.new_subtask_agent_names = [self.name]
             # Epsilon-greedy exploration
             if np.random.rand() < self.epsilon:
@@ -163,7 +163,6 @@ class RealAgent:
                         max_q_value = q_value
                         self.new_subtask = subtask
             elif self.model_type == "ppo": 
-                print("PICKING BEST LEAARNT ACTION-------------------------------------------------------------------------------------")
                 # Create tensor of the current state of subtasks of the agent
                 completion_status_list = [status for status in self.task_completion_status.values()]
                 state_tensor = torch.tensor(completion_status_list, dtype=torch.float32) 
@@ -250,6 +249,8 @@ class RealAgent:
 
         # Refresh for incomplete subtasks.
         if self.subtask_complete:
+            print("REWARD ADDED ", reward)
+            self.rewards.append(reward)
             if self.subtask in self.incomplete_subtasks:
                 self.incomplete_subtasks.remove(self.subtask)
                 self.subtask_complete = True
@@ -260,7 +261,6 @@ class RealAgent:
         
         if self.is_using_reinforcement_learning:
             # Used to retrieve rewards for the episode
-            self.rewards.append(reward)
             if self.model_type == "ql":
                 if self.subtask_complete:
                     if self.in_training:

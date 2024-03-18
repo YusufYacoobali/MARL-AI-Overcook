@@ -100,7 +100,7 @@ def main_loop(arglist):
     rl_agents = []
 
     # Info bag for saving pkl files
-    bag = Bag(arglist=arglist, filename=env.filename)
+    bag = Bag(arglist=arglist, filename=env.filename + " training")
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
 
     for agent in real_agents:
@@ -120,7 +120,7 @@ def main_loop(arglist):
             # Reset the environment for a new episode
             print("Episode: ", episode)
             episode_reward = 0
-            obs = env.reset()  
+            obs = env.reset()
             for step in range(max_steps_per_episode):
                 action_dict = {}
                 for agent in rl_agents:
@@ -133,23 +133,20 @@ def main_loop(arglist):
                 print(f"Step {step}: Reward = {reward}, Done = {done}")
 
                 for agent in rl_agents:
-                    agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode - step)
+                    agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode +1 - step)
 
                 if done or step == max_steps_per_episode-1:
                     for agent in rl_agents:
                         if agent.model_type == "ppo":
                             agent.train()
-                            print("Agents finished training on experiences acquired in the episode")
+                            print("Agent has finished training on experiences acquired in the episode")
                         # Collect total rewards for the episode
                         episode_reward += sum(agent.rewards)
-                    print(f"For episode {episode}, reward was {episode_reward}")
                     break
 
             episode_rewards.append(episode_reward)
 
         print("Training for RL agents has finished")
-        print(range(1, num_episodes))
-        print(episode_rewards)
         # Fit a linear regression line to the data
         slope, intercept, _, _, _ = linregress(range(1, num_episodes + 1), episode_rewards)
         regression_line = slope * np.arange(1, num_episodes + 1) + intercept
