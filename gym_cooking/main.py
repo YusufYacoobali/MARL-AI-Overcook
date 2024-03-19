@@ -114,23 +114,29 @@ def main_loop(arglist):
             agent.in_training = True
 
         episode_rewards = []
+        epsilon_start = 0.9
+        epsilon_end = 0.1  # or whatever minimum value you want epsilon to decay to
+        epsilon_decay = 0.85
         num_episodes = int(arglist.eps)
-        max_steps_per_episode = int(arglist.grid_size) * 4 
+        max_steps_per_episode = int(arglist.grid_size) * 2
         for episode in range(num_episodes):
             # Reset the environment for a new episode
             print("Episode: ", episode)
             episode_reward = 0
+            epsilon = epsilon_start * (epsilon_decay ** episode)
+            epsilon = max(epsilon, epsilon_end)
             obs = env.reset()
             for step in range(max_steps_per_episode):
                 action_dict = {}
                 for agent in rl_agents:
-                    action = agent.select_action(obs=obs, episode=episode, max_steps=int(arglist.grid_size) * 2)
+                    action = agent.select_action(obs=obs, episode=episode, max_steps=int(arglist.grid_size) * 2, epsilon=epsilon)
                     action_dict[agent.name] = action
                     print(f"Agent {agent.name} selects action {action}")
                 # Take one step in the environment
                 obs, reward, done, info = env.step(action_dict=action_dict)
                 #episode_reward += reward
                 print(f"Step {step}: Reward = {reward}, Done = {done}")
+                print("EPSILON", epsilon)
 
                 for agent in rl_agents:
                     agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode +1 - step)
@@ -147,6 +153,7 @@ def main_loop(arglist):
             episode_rewards.append(episode_reward)
 
         print("Training for RL agents has finished")
+        print(episode_rewards)
         # Fit a linear regression line to the data
         slope, intercept, _, _, _ = linregress(range(1, num_episodes + 1), episode_rewards)
         regression_line = slope * np.arange(1, num_episodes + 1) + intercept
@@ -172,7 +179,7 @@ def main_loop(arglist):
     while not env.done():
         action_dict = {}
         for agent in real_agents:
-            action = agent.select_action(obs=obs, episode=0, max_steps=int(arglist.grid_size) * 2)
+            action = agent.select_action(obs=obs, episode=0, max_steps=int(arglist.grid_size) * 2, epsilon=0)
             action_dict[agent.name] = action
 
         obs, reward, done, info = env.step(action_dict=action_dict)

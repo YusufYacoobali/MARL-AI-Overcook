@@ -54,7 +54,6 @@ class RealAgent:
         self.learning_rate = 0.1  
         self.in_training = False
         self.is_using_reinforcement_learning = False
-        self.epsilon = 0.5
         # Proximal Policy Optimization parameters
         self.states = []
         self.actions = []
@@ -99,7 +98,7 @@ class RealAgent:
             return 'None'
         return self.holding.full_name
 
-    def select_action(self, obs, episode, max_steps):
+    def select_action(self, obs, episode, max_steps, epsilon):
         """Return best next action for this agent given observations."""
         sim_agent = list(filter(lambda x: x.name == self.name, obs.sim_agents))[0]
         self.location = sim_agent.location
@@ -151,7 +150,7 @@ class RealAgent:
         elif self.is_using_reinforcement_learning and self.in_training == True:
             self.new_subtask_agent_names = [self.name]
             # Epsilon-greedy exploration
-            if np.random.rand() < self.epsilon:
+            if np.random.rand() < epsilon:
                 # Choose a random action
                 print("PICKING RANDOM ACTION-------------------------------------------------------------------------------------")
                 self.new_subtask = np.random.choice(self.incomplete_subtasks)
@@ -249,7 +248,7 @@ class RealAgent:
 
         # Refresh for incomplete subtasks.
         if self.subtask_complete:
-            print("REWARD ADDED ", reward)
+            print("REWARD ADDED ------------------------------------------------------------------------------------", reward)
             self.rewards.append(reward)
             if self.subtask in self.incomplete_subtasks:
                 self.incomplete_subtasks.remove(self.subtask)
