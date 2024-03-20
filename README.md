@@ -2,7 +2,7 @@
 
 <!-- [[Full paper]](https://arxiv.org/abs/2003.11778) [[Journal paper]](https://onlinelibrary.wiley.com/doi/10.1111/tops.12525) [[Video]](https://www.youtube.com/watch?v=Fd4RcVaNthY&ab_channel=RoseWang) -->
 
-The following is a research project carried to create map generation for a multi-agent domain as well as evaluate the effectiveness of a proposed Bayesian Delegation method compared to Reinforcement Learning techniques such as Q-Learning and Policy Gradient. This repository is heavily based upon ([text](https://github.com/rosewang2008/gym-cooking)) which is about a Bayesian Delegation method for multi-agent collaboration, Winner of the CogSci 2020 Computational Modeling Prize in High Cognition.
+The following is a research project carried to create map generation for a multi-agent domain as well as evaluate the effectiveness of a proposed Bayesian Delegation method compared to Reinforcement Learning techniques such as Q-Learning and Policy Gradient. This repository is heavily based upon [Link Text](https://github.com/rosewang2008/gym-cooking) which is about a Bayesian Delegation method for multi-agent collaboration, Winner of the CogSci 2020 Computational Modeling Prize in High Cognition.
 
 Contents:
 
