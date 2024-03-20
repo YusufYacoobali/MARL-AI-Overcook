@@ -1,28 +1,23 @@
 # Code for OvercookedEnvironment (gym-cooking) and Alteration to "Too many cooks: Bayesian inference for coordinating multi-agent collaboration"
 
-[[Full paper]](https://arxiv.org/abs/2003.11778) [[Journal paper]](https://onlinelibrary.wiley.com/doi/10.1111/tops.12525) [[Video]](https://www.youtube.com/watch?v=Fd4RcVaNthY&ab_channel=RoseWang)
+<!-- [[Full paper]](https://arxiv.org/abs/2003.11778) [[Journal paper]](https://onlinelibrary.wiley.com/doi/10.1111/tops.12525) [[Video]](https://www.youtube.com/watch?v=Fd4RcVaNthY&ab_channel=RoseWang) -->
 
-The following is a research project carried out on the exisiting Bayesian Delegation method for multi-agent collaboration, Winner of the CogSci 2020 Computational Modeling Prize in High Cognition, and a NeurIPS 2020 CoopAI Workshop Best Paper.
+The following is a research project carried to create map generation for a multi-agent domain as well as evaluate the effectiveness of a proposed Bayesian Delegation method compared to Reinforcement Learning techniques such as Q-Learning and Policy Gradient. This repository is heavily based upon ([text](https://github.com/rosewang2008/gym-cooking)) which is about a Bayesian Delegation method for multi-agent collaboration, Winner of the CogSci 2020 Computational Modeling Prize in High Cognition.
 
 Contents:
 
-- [Introduction](#introduction)
+<!-- - [Introduction](#introduction) -->
+
 - [Installation](#installation)
 - [Usage](#usage)
 - [Environments and Recipes](docs/environments.md)
 - [Design and Customization](docs/design.md)
 - [Alterations](#alterations)
 
-## Introduction
-
 <p align="center">
     <img src="images/complete1.gif" width=260></img>
     <img src="images/complete2.gif" width=260></img>
 </p>
-
-This repository has been adapted from the original to include map generation which accounts for a multi-agent setting as well as implementing new ways of searching using Reinforcement Learning through techniques such as Q-Learning and Proximal Policy Optimization to see if it performs better than the proposed Bayesian Delegation. The following is what the original repository describes of the proposed Bayesian Delegation method:
-
-Collaboration requires agents to coordinate their behavior on the fly, sometimes cooperating to solve a single task together and other times dividing it up into sub-tasks to work on in parallel. Underlying the human ability to collaborate is theory-of-mind, the ability to infer the hidden mental states that drive others to act. Here, we develop Bayesian Delegation, a decentralized multi-agent learning mechanism with these abilities. Bayesian Delegation enables agents to rapidly infer the hidden intentions of others by inverse planning. We test Bayesian Delegation in a suite of multi-agent Markov decision processes inspired by cooking problems. On these tasks, agents with Bayesian Delegation coordinate both their high-level plans (e.g. what sub-task they should work on) and their low-level actions (e.g. avoiding getting in each other’s way). In a self-play evaluation, Bayesian Delegation outperforms alternative algorithms. Bayesian Delegation is also a capable ad-hoc collaborator and successfully coordinates with other agent types even in the absence of prior experience. Finally, in a behavioral experiment, we show that Bayesian Delegation makes inferences similar to human observers about the intent of others. Together, these results demonstrate the power of Bayesian Delegation for decentralized multi-agent collaboration.
 
 <!-- You can use this bibtex if you would like to cite this work (Wu and Wang et al., 2021):
 
