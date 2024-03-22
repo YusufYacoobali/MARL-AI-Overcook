@@ -63,7 +63,7 @@ class RealAgent:
         self.model_type = agent_settings(arglist, name)
         if self.model_type == "up":
             self.priors = 'uniform'
-        elif self.model_type == "ql" or self.model_type == "ppo":
+        elif self.model_type == "ql" or self.model_type == "pg":
             self.is_using_reinforcement_learning = True
             self.priors = 'spatial'
         else:
@@ -125,7 +125,7 @@ class RealAgent:
                 if max_q_value == 0:
                         self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
 
-            elif self.model_type == "ppo": 
+            elif self.model_type == "pg": 
                 # Create tensor of the current state of subtasks of the agent
                 completion_status_list = [status for status in self.task_completion_status.values()]
                 state_tensor = torch.tensor(completion_status_list, dtype=torch.float32) 
@@ -161,7 +161,7 @@ class RealAgent:
                     if q_value > max_q_value:
                         max_q_value = q_value
                         self.new_subtask = subtask
-            elif self.model_type == "ppo": 
+            elif self.model_type == "pg": 
                 # Create tensor of the current state of subtasks of the agent
                 completion_status_list = [status for status in self.task_completion_status.values()]
                 state_tensor = torch.tensor(completion_status_list, dtype=torch.float32) 
@@ -204,7 +204,7 @@ class RealAgent:
 
     def setup_subtasks(self, env, episode):
         """Initializing subtasks and subtask allocator, Bayesian Delegation."""
-        # Lists are used for collecting experiences in episodes for PPO
+        # Lists are used for collecting experiences in episodes for pg
         self.states = []
         self.actions = []
         self.rewards = []
@@ -214,7 +214,7 @@ class RealAgent:
         if self.is_using_reinforcement_learning and self.in_training and episode == 0:
             if self.model_type == "ql":
                 self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
-            elif self.model_type == "ppo":
+            elif self.model_type == "pg":
                 size = len(self.incomplete_subtasks)
                 # Create the policy network along with its optimizer using number of subtasks as its size
                 self.policy_network = PolicyNetwork(input_size=size, output_size=size)  
@@ -267,7 +267,7 @@ class RealAgent:
                     else:
                         if self.subtask is not None:
                             del self.q_values[self.subtask]
-            elif self.model_type == "ppo":
+            elif self.model_type == "pg":
                 if self.subtask_complete:
                     if self.in_training:
                         self.collect_experience(reward=reward)

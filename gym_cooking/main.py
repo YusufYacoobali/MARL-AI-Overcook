@@ -48,10 +48,10 @@ def parse_arguments():
     # Models
     # Valid options: `bd` = Bayes Delegation; `up` = Uniform Priors
     # `dc` = Divide & Conquer; `fb` = Fixed Beliefs; `greedy` = Greedy
-    parser.add_argument("--model1", type=str, default=None, help="Model type for agent 1 (bd, up, dc, fb, greedy, ppo or ql)")
-    parser.add_argument("--model2", type=str, default=None, help="Model type for agent 2 (bd, up, dc, fb, greedy, ppo or ql)")
-    parser.add_argument("--model3", type=str, default=None, help="Model type for agent 3 (bd, up, dc, fb, greedy, ppo or ql)")
-    parser.add_argument("--model4", type=str, default=None, help="Model type for agent 4 (bd, up, dc, fb, greedy, ppo or ql)")
+    parser.add_argument("--model1", type=str, default=None, help="Model type for agent 1 (bd, up, dc, fb, greedy, pg or ql)")
+    parser.add_argument("--model2", type=str, default=None, help="Model type for agent 2 (bd, up, dc, fb, greedy, pg or ql)")
+    parser.add_argument("--model3", type=str, default=None, help="Model type for agent 3 (bd, up, dc, fb, greedy, pg or ql)")
+    parser.add_argument("--model4", type=str, default=None, help="Model type for agent 4 (bd, up, dc, fb, greedy, pg or ql)")
 
     return parser.parse_args()
 
@@ -100,7 +100,7 @@ def main_loop(arglist):
     rl_agents = []
 
     # Info bag for saving pkl files
-    bag = Bag(arglist=arglist, filename=env.filename + " training")
+    bag = Bag(arglist=arglist, filename=env.filename)
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
 
     for agent in real_agents:
@@ -143,9 +143,8 @@ def main_loop(arglist):
 
                 if done or step == max_steps_per_episode-1:
                     for agent in rl_agents:
-                        if agent.model_type == "ppo":
+                        if agent.model_type == "pg":
                             agent.train()
-                            print("Agent has finished training on experiences acquired in the episode")
                         # Collect total rewards for the episode
                         episode_reward += sum(agent.rewards)
                     break

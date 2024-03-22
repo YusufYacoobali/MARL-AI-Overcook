@@ -135,7 +135,7 @@ This section outlines where changes were made:
   This holds all the code for the map generation.
 
 - network.py was added.
-  This is a neural network used for when agents select the PPO method.
+  This is a neural network used for when agents select the Policy Gradient method.
 
 - agents.py was modified.
   The implementation for adding the two additional methods, Q-Learning and Policy Gradient, were carried out. The changes include lines 52-61, 66-68, 113-153, 173-186, 224-236, 350-398.
