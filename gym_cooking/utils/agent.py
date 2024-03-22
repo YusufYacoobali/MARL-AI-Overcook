@@ -126,18 +126,8 @@ class RealAgent:
                 print("these are action choices: agent", self.name)
                 for a in actions:
                     print(self.q_values.get((state, a), 0))
-                #next_max_q_val = max(self.q_values.get((state, action), 0) for action in self.task_completion_status.keys())
-                
                 # Find the action with the highest Q-value for the current state.
                 self.new_subtask = max(actions, key=lambda act: self.q_values.get((state, act), 0), default=None)
-                # max_q_value = float('-inf')
-                # for subtask, q_value in self.q_values.items():
-                #     if q_value > max_q_value:
-                #         max_q_value = q_value
-                #         self.new_subtask = subtask
-                # If it doesnt know next best move, rely on bayesian delegation
-                # if max_q_value == 0:
-                #         self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
 
             elif self.model_type == "pg": 
                 # Create tensor of the current state of subtasks of the agent
@@ -175,18 +165,12 @@ class RealAgent:
                 print("Q-values OPTIONS agent:", self.name)
                 for key, value in self.q_values.items():
                     print(key, ":", value)
-                #next_max_q_val = max(self.q_values.get((state, action), 0) for action in self.task_completion_status.keys())
                 print("for this state ", state)
                 print("these are action choices: ", )
                 for a in actions:
                     print(self.q_values.get((state, a), 0))
                 # Find the action with the highest Q-value for the current state.
                 self.new_subtask = max(actions, key=lambda act: self.q_values.get((state, act), 0), default=None)
-                # max_q_value = float('-inf')
-                # for subtask, q_value in self.q_values.items():
-                #     if q_value > max_q_value:
-                #         max_q_value = q_value
-                #         self.new_subtask = subtask
             elif self.model_type == "pg": 
                 # Create tensor of the current state of subtasks of the agent
                 completion_status_list = [status for status in self.task_completion_status.values()]
@@ -301,24 +285,6 @@ class RealAgent:
         print('{} incomplete subtasks:'.format(
             color(self.name, self.color)),
             ', '.join(str(t) for t in self.incomplete_subtasks))
-        
-        # if self.is_using_reinforcement_learning:
-        #     # Used to retrieve rewards for the episode
-        #     if self.model_type == "ql":
-        #         if self.subtask_complete:
-        #             if self.in_training:
-        #                 print("UPDATING FOR SUBTASK ", self.subtask)
-        #                 self.update_q_values(reward)
-        #             self.task_completion_status[self.subtask] = 1
-        #                 #no deleting when state is involved
-        #             # else:
-        #             #     if self.subtask is not None:
-        #             #         del self.q_values[self.subtask]
-        #     elif self.model_type == "pg":
-        #         if self.subtask_complete:
-        #             if self.in_training:
-        #                 self.collect_experience(reward=reward)
-        #             self.task_completion_status[self.subtask] = 1
 
     def update_subtasks(self, env):
         """Update incomplete subtasks---relevant for Bayesian Delegation."""
@@ -435,18 +401,11 @@ class RealAgent:
     def update_q_values(self, reward):
         """Update Q-value for the given subtask based on observed reward."""
         state = tuple([status for status in self.task_completion_status.values()])
-        print("Task completion status:")
-        for key, value in self.task_completion_status.items():
-            print(f"{key}: {value}")
         old_q_val = self.q_values.get((state, self.subtask), 0)
-        # self.q_values[(state, self.subtask)] = old_q_val + self.learning_rate * (reward - old_q_val)
 
         next_task_completion_status = dict(self.task_completion_status)
         next_task_completion_status[self.subtask] = 1
         next_state = tuple([status for status in next_task_completion_status.values()])
-        print("Task completion status:")
-        for key, value in next_task_completion_status.items():
-            print(f"{key}: {value}")
 
         # Get the maximum Q-value for the next state
         next_max_q_val = max(self.q_values.get((next_state, action), 0) for action in self.task_completion_status.keys())
