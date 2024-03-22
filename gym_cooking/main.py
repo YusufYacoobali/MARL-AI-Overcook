@@ -26,7 +26,7 @@ def parse_arguments():
     parser.add_argument("--num-agents", type=int, required=True, default=2, help="The number of agents wanted")
     parser.add_argument("--grid-size", type=str, default=4, help="The size of the map wanted")
     parser.add_argument("--grid-type", type=str, default="o", help="The type of map to generate")
-    parser.add_argument("--eps", type=int, default=2, help="Number of training episodes to run")
+    parser.add_argument("--eps", type=int, default=3, help="Number of training episodes to run")
     parser.add_argument("--max-num-timesteps", type=int, default=100, help="Max number of timesteps to run")
     parser.add_argument("--max-num-subtasks", type=int, default=14, help="Max number of subtasks for recipe")
     parser.add_argument("--seed", type=int, default=1, help="Fix pseudorandom seed")
@@ -113,59 +113,76 @@ def main_loop(arglist):
         for agent in rl_agents:
             agent.in_training = True
 
-        episode_rewards = []
+        num_training_rounds = 2
+        episodes_per_round = 10
+        episode_rewards_over_rounds = []
+
+        #episode_rewards = []
         epsilon_start = 0.9
         epsilon_end = 0.1  # or whatever minimum value you want epsilon to decay to
         epsilon_decay = 0.85
         num_episodes = int(arglist.eps)
-        max_steps_per_episode = int(arglist.grid_size) * 2
-        for episode in range(num_episodes):
-            # Reset the environment for a new episode
-            print("Episode: ", episode)
-            episode_reward = 0
-            epsilon = epsilon_start * (epsilon_decay ** episode)
-            epsilon = max(epsilon, epsilon_end)
-            obs = env.reset()
-            for step in range(max_steps_per_episode):
-                action_dict = {}
-                for agent in rl_agents:
-                    action = agent.select_action(obs=obs, episode=episode, max_steps=int(arglist.grid_size) * 2, epsilon=epsilon)
-                    action_dict[agent.name] = action
-                    print(f"Agent {agent.name} selects action {action}")
-                # Take one step in the environment
-                obs, reward, done, info = env.step(action_dict=action_dict)
-                #episode_reward += reward
-                print(f"Step {step}: Reward = {reward}, Done = {done}")
-                print("EPSILON", epsilon)
+        max_steps_per_episode = int(arglist.grid_size) * 3
 
-                for agent in rl_agents:
-                    agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode +1 - step)
+        for round in range(num_training_rounds):
+            print(f"Training Round: {round + 1}")
+            episode_rewards = []
 
-                if done or step == max_steps_per_episode-1:
+            for episode in range(num_episodes):
+                # Reset the environment for a new episode
+                print("Episode: ", episode)
+                episode_reward = 0
+                epsilon = epsilon_start * (epsilon_decay ** episode)
+                epsilon = max(epsilon, epsilon_end)
+                obs = env.reset()
+                for step in range(max_steps_per_episode):
+                    action_dict = {}
                     for agent in rl_agents:
-                        if agent.model_type == "pg":
-                            agent.train()
-                        # Collect total rewards for the episode
-                        episode_reward += sum(agent.rewards)
-                    break
+                        action = agent.select_action(obs=obs, episode=episode, max_steps=int(arglist.grid_size) * 2, epsilon=epsilon)
+                        action_dict[agent.name] = action
+                        print(f"Agent {agent.name} selects action {action}")
+                    # Take one step in the environment
+                    obs, reward, done, info = env.step(action_dict=action_dict)
+                    #episode_reward += reward
+                    print(f"Step {step}: Reward = {reward}, Done = {done}")
+                    print("EPSILON", epsilon)
 
-            episode_rewards.append(episode_reward)
+                    for agent in rl_agents:
+                        agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode +1 - step)
+
+                    if done or step == max_steps_per_episode-1:
+                        for agent in rl_agents:
+                            if agent.model_type == "pg":
+                                agent.train()
+                            # Collect total rewards for the episode
+                            episode_reward += sum(agent.rewards)
+                        break
+
+                episode_rewards.append(episode_reward)
+            episode_rewards_over_rounds.append(episode_rewards)
 
         print("Training for RL agents has finished")
-        print(episode_rewards)
-        # Fit a linear regression line to the data
-        slope, intercept, _, _, _ = linregress(range(1, num_episodes + 1), episode_rewards)
-        regression_line = slope * np.arange(1, num_episodes + 1) + intercept
-        # Plotting both the raw rewards and the regression line over episodes
-        plt.plot(range(1, num_episodes + 1), episode_rewards, label='Rewards per episode')
-        plt.plot(range(1, num_episodes + 1), regression_line, label='Line of best fit', color='red')
+        for i, rewards in enumerate(episode_rewards_over_rounds):
+            plt.plot(range(1, (i + 1) * episodes_per_round + 1), rewards, label=f'Round {i+1}')
+
         plt.xlabel('Episode')
         plt.ylabel('Total Reward')
-        plt.title('Total Reward per Episode')
+        plt.title('Total Reward per Episode over Multiple Rounds')
         plt.grid(True)
-
         plt.legend()
         plt.show()
+
+        # print("Training for RL agents has finished")
+        # print(episode_rewards)
+        # # Plotting both the raw rewards and the regression line over episodes
+        # plt.plot(range(1, num_episodes + 1), episode_rewards, label='Rewards per episode')
+        # plt.xlabel('Episode')
+        # plt.ylabel('Total Reward')
+        # plt.title('Total Reward per Episode')
+        # plt.grid(True)
+
+        # plt.legend()
+        # plt.show()
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
