@@ -161,9 +161,23 @@ def main_loop(arglist):
                 episode_rewards.append(episode_reward)
             episode_rewards_over_rounds.append(episode_rewards)
 
+        # for _ in range(num_training_rounds):
+        #     episode_rewards = np.random.normal(loc=10, scale=3, size=episodes_per_round)  # Example rewards
+        #     episode_rewards_over_rounds.append(episode_rewards)
+
         print("Training for RL agents has finished")
+        mean_rewards = np.mean(episode_rewards_over_rounds, axis=0)
+        std_rewards = np.std(episode_rewards_over_rounds, axis=0)
+
+        x_values = np.arange(1, (num_training_rounds * episodes_per_round) + 1)
         for i, rewards in enumerate(episode_rewards_over_rounds):
-            plt.plot(range(1, (i + 1) * episodes_per_round + 1), rewards, label=f'Round {i+1}')
+            start_index = i * (episodes_per_round // 2)  # Overlapping starts
+            end_index = start_index + episodes_per_round
+            plt.plot(x_values[start_index:end_index], rewards, label=f'Round {i+1}')
+
+        # Plot mean and standard deviation
+        plt.errorbar(x_values[:len(mean_rewards)], mean_rewards, yerr=std_rewards, label='Mean ± Std Dev', color='black')
+
 
         plt.xlabel('Episode')
         plt.ylabel('Total Reward')
