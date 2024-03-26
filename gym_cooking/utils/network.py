@@ -8,7 +8,6 @@ class PolicyNetwork(nn.Module):
     """
     def __init__(self, input_size, output_size):
         super(PolicyNetwork, self).__init__()
-        # Neural network with two layers
         self.fc1 = nn.Linear(input_size, 64)
         self.fc2 = nn.Linear(64, output_size)
 

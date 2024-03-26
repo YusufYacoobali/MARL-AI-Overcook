@@ -14,7 +14,7 @@ import navigation_planner.utils as nav_utils
 from utils.core import Counter, Cutboard
 from utils.utils import agent_settings
 
-# Reinforcement learning
+# Reinforcement learning modules
 from utils.network import PolicyNetwork
 import torch
 import torch.optim as optim
@@ -55,7 +55,8 @@ class RealAgent:
         self.gamma = 0.8
         self.in_training = False
         self.is_using_reinforcement_learning = False
-        # Proximal Policy Optimization parameters
+
+        # Policy Gradient parameters
         self.states = []
         self.actions = []
         self.rewards = []
@@ -113,88 +114,75 @@ class RealAgent:
         self.update_subtasks(env=obs)
         self.task_length += 1
         print("\nAgent Is Training: ", self.in_training)
-        # If agent is using RL and needs inference, then use appropriate model type solution
-        if self.is_using_reinforcement_learning and self.in_training == False and self.task_length <= max_steps:
+
+        if self.is_using_reinforcement_learning and self.task_length <= max_steps:
             self.new_subtask_agent_names = [self.name]
-            if self.model_type == "ql":
-                print("INFERENCE")
-                state = tuple(status for status in self.task_completion_status.values())
-                actions = tuple(status for status in self.task_completion_status.keys())
-                for key, value in self.q_values.items():
-                    print(key, ":", value)
-                print("for this state ", state)
-                print("these are action choices: agent", self.name)
-                for a in actions:
-                    print(self.q_values.get((state, a), 0))
-                # Find the action with the highest Q-value for the current state.
-                self.new_subtask = max(actions, key=lambda act: self.q_values.get((state, act), 0), default=None)
-
-            elif self.model_type == "pg": 
-                # Create tensor of the current state of subtasks of the agent
-                completion_status_list = [status for status in self.task_completion_status.values()]
-                state_tensor = torch.tensor(completion_status_list, dtype=torch.float32) 
-                # Gradient calculation not needed for inference
-                with torch.no_grad():  
-                    logits = self.policy_network(state_tensor)
-                    action_probs = F.softmax(logits, dim=-1).numpy()  
-
-                 # Select the action with the highest probability
-                best_action_index = np.argmax(action_probs)
-                task = list(self.task_completion_status.keys())[best_action_index]
-                if task in self.incomplete_subtasks:
-                    self.new_subtask = task
-                else:
-                    # If new task is already complete, find next task with next highest probability
-                    for i in range(best_action_index + 1, len(action_probs)):
-                        next_task = list(self.task_completion_status.keys())[i]
-                        if next_task in self.incomplete_subtasks:
-                            self.new_subtask = next_task
-                            break
-        
-        elif self.is_using_reinforcement_learning and self.in_training == True and self.task_length <= max_steps:
-            self.new_subtask_agent_names = [self.name]
-            # Epsilon-greedy exploration
-            if np.random.rand() < epsilon:
-                # Choose a random action
-                print("PICKING RANDOM ACTION-------------------------------------------------------------------------------------")
-                self.new_subtask = np.random.choice(self.incomplete_subtasks)
-            elif self.model_type == "ql": 
-                print("PICKING BEST LEAARNT ACTION-------------------------------------------------------------------------------------")
-                state = tuple(status for status in self.task_completion_status.values())
-                actions = tuple(status for status in self.task_completion_status.keys())
-                print("Q-values OPTIONS agent:", self.name)
-                for key, value in self.q_values.items():
-                    print(key, ":", value)
-                print("for this state ", state)
-                print("these are action choices: ", )
-                for a in actions:
-                    print(self.q_values.get((state, a), 0))
-                # Find the action with the highest Q-value for the current state.
-                self.new_subtask = max(actions, key=lambda act: self.q_values.get((state, act), 0), default=None)
-            elif self.model_type == "pg": 
-                # Create tensor of the current state of subtasks of the agent
-                completion_status_list = [status for status in self.task_completion_status.values()]
-                state_tensor = torch.tensor(completion_status_list, dtype=torch.float32) 
-                # Gradient calculation not needed for inference
-                with torch.no_grad():  
-                    logits = self.policy_network(state_tensor)
-                    action_probs = F.softmax(logits, dim=-1).numpy()  
-
-                 # Select the action with the highest probability
-                best_action_index = np.argmax(action_probs)
-                task = list(self.task_completion_status.keys())[best_action_index]
-                if task in self.incomplete_subtasks:
-                    self.new_subtask = task
-                else:
-                    # If new task is already complete, find next task with next highest probability
-                    for i in range(best_action_index + 1, len(action_probs)):
-                        next_task = list(self.task_completion_status.keys())[i]
-                        if next_task in self.incomplete_subtasks:
-                            self.new_subtask = next_task
-                            break
-        # If agents are not using RL, use the original way
-        else: 
+            # If agent is using RL and needs inference, then use appropriate model type solution
+            if not self.in_training:
+                if self.model_type == "ql":
+                    state = tuple(self.task_completion_status.values())
+                    actions = tuple(self.task_completion_status.keys())
+                    # Find the action with the highest Q-value for the current state.
+                    self.new_subtask = max(actions, key=lambda act: self.q_values.get((state, act), 0), default=None)
+                elif self.model_type == "pg":
+                    completion_status_list = [status for status in self.task_completion_status.values()]
+                    state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
+                    # Gradient calculation not needed for inference
+                    with torch.no_grad():  
+                        logits = self.policy_network(state_tensor)
+                        action_probs = F.softmax(logits, dim=-1).numpy()  
+                        
+                    # Select the action with the highest probability
+                    best_action_index = np.argmax(action_probs)
+                    task = list(self.task_completion_status.keys())[best_action_index]
+                    if task in self.incomplete_subtasks:
+                        self.new_subtask = task
+                    else:
+                        # If new task is already complete, find next task with next highest probability
+                        for i in range(best_action_index + 1, len(action_probs)):
+                            next_task = list(self.task_completion_status.keys())[i]
+                            if next_task in self.incomplete_subtasks:
+                                self.new_subtask = next_task
+                                break
+            # Epsilon greedy during training, uses the same code for picking the best actions as above
+            else:
+                if np.random.rand() < epsilon:
+                    # Choose a random action
+                    self.new_subtask = np.random.choice(self.incomplete_subtasks)
+                elif self.model_type == "ql": 
+                    state = tuple(status for status in self.task_completion_status.values())
+                    actions = tuple(status for status in self.task_completion_status.keys())
+                    # Find the action with the highest Q-value for the current state.
+                    self.new_subtask = max(actions, key=lambda act: self.q_values.get((state, act), 0), default=None)
+                elif self.model_type == "pg": 
+                    completion_status_list = [status for status in self.task_completion_status.values()]
+                    state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
+                    # Gradient calculation not needed for inference
+                    with torch.no_grad():  
+                        logits = self.policy_network(state_tensor)
+                        action_probs = F.softmax(logits, dim=-1).numpy()  
+                        
+                    # Select the action with the highest probability
+                    best_action_index = np.argmax(action_probs)
+                    task = list(self.task_completion_status.keys())[best_action_index]
+                    if task in self.incomplete_subtasks:
+                        self.new_subtask = task
+                    else:
+                        # If new task is already complete, find next task with next highest probability
+                        for i in range(best_action_index + 1, len(action_probs)):
+                            next_task = list(self.task_completion_status.keys())[i]
+                            if next_task in self.incomplete_subtasks:
+                                self.new_subtask = next_task
+                                break
+        # Use original delegator if RL method is not chosen.
+        elif not self.is_using_reinforcement_learning:
             self.new_subtask, self.new_subtask_agent_names = self.delegator.select_subtask(agent_name=self.name)
+        # If an RL agent has had the same task for a while and is unable to do it, it chooses a random task
+        else:
+            self.new_subtask_agent_names = [self.name]
+            self.new_subtask = np.random.choice(self.incomplete_subtasks)
+            self.task_length = 0
+
         print(f"Chosen action: {self.new_subtask}")
         self.plan(copy.copy(obs))
         return self.action
@@ -218,12 +206,11 @@ class RealAgent:
         self.states = []
         self.actions = []
         self.rewards = []
+        self.task_length = 0
         self.incomplete_subtasks = self.get_subtasks(world=env.world)
         self.task_completion_status = {task: 0 for task in self.incomplete_subtasks}
         # Set up important variables in the first training episode
         if self.is_using_reinforcement_learning and self.in_training and episode == 0:
-            # if self.model_type == "ql":
-            #     self.q_values = {subtask: 0.0 for subtask in self.incomplete_subtasks}
             if self.model_type == "pg":
                 size = len(self.incomplete_subtasks)
                 # Create the policy network along with its optimizer using number of subtasks as its size
@@ -256,28 +243,16 @@ class RealAgent:
             self.subtask, self.is_subtask_complete(world),
             self.planner.subtask, self.planner.goal_obj))
         
-        if self.is_using_reinforcement_learning:
-            # Used to retrieve rewards for the episode
+        if self.is_using_reinforcement_learning and self.subtask_complete and self.in_training:
             if self.model_type == "ql":
-                if self.subtask_complete:
-                    if self.in_training:
-                        print("UPDATING FOR SUBTASK ", self.subtask)
-                        self.update_q_values(reward)
-                    self.task_completion_status[self.subtask] = 1
-                        #no deleting when state is involved
-                    # else:
-                    #     if self.subtask is not None:
-                    #         del self.q_values[self.subtask]
+                self.update_q_values(reward)
             elif self.model_type == "pg":
-                if self.subtask_complete:
-                    if self.in_training:
-                        self.collect_experience(reward=reward)
-                    self.task_completion_status[self.subtask] = 1
+                self.collect_experience()
 
         # Refresh for incomplete subtasks.
         if self.subtask_complete:
-            print("REWARD ADDED ------------------------------------------------------------------------------------", reward)
             self.rewards.append(reward)
+            self.task_completion_status[self.subtask] = 1            
             if self.subtask in self.incomplete_subtasks:
                 self.incomplete_subtasks.remove(self.subtask)
                 self.subtask_complete = True
@@ -402,26 +377,21 @@ class RealAgent:
         """Update Q-value for the given subtask based on observed reward."""
         state = tuple([status for status in self.task_completion_status.values()])
         old_q_val = self.q_values.get((state, self.subtask), 0)
-
+        # Create the next game state
         next_task_completion_status = dict(self.task_completion_status)
         next_task_completion_status[self.subtask] = 1
         next_state = tuple([status for status in next_task_completion_status.values()])
-
         # Get the maximum Q-value for the next state
         next_max_q_val = max(self.q_values.get((next_state, action), 0) for action in self.task_completion_status.keys())
 
         # Update Q-value using the Q-learning update rule
         self.q_values[(state, self.subtask)] = (1 - self.learning_rate) * old_q_val + self.learning_rate * (reward + self.gamma * next_max_q_val)
-        print("Q-values Updated agent:", self.name)
-        for key, value in self.q_values.items():
-            print(key, ":", value)
 
-    def collect_experience(self, reward):
+    def collect_experience(self):
         """Collect experience from the current completed subtask to be used in training later on."""
         state = [status for status in self.task_completion_status.values()]
         self.states.append(state)
         self.actions.append(self.subtask)
-        #self.rewards.append(reward)
 
     def train(self):
         """
@@ -439,15 +409,16 @@ class RealAgent:
         
         # Compute loss and optimize
         try:
+            # Loss is computed
             loss = self.compute_loss(states, actions, rewards)
             # Clears previous gradients for fresh new data
             self.optimizer.zero_grad()
-            # Calculates direction and magnitude of new adjustments as well as calculating gradient
+            # Backpropagation, it calculates new gradients
             loss.backward()
-            # Uses above to update the neural network's weights to get closer to optimal policy
+            # Uses gradients to update the neural network's weights to get closer to optimal policy
             self.optimizer.step()
         except RuntimeError as e:
-            print("The Neural Network had trouble: ", e)
+            print("There was no good data to update on")
         print("Policy Network updated.")
 
     def compute_loss(self, states, actions, rewards):
@@ -455,10 +426,11 @@ class RealAgent:
         Compute the loss for training the policy network. 
         Policy gives probabilities which are adjusted according to actions and rewards at those states
         """
-        # Retrieve probability of 
+        # Retrieve predicted values from neural network to compare to actual rewards
         logits = self.policy_network(states)
         log_probs = F.log_softmax(logits, dim=-1)
         log_probs_for_actions = log_probs.gather(1, actions.unsqueeze(1))
+        # Minimizing a negative loss is the same as maximizing the reward function
         policy_loss = -(log_probs_for_actions * rewards).mean()
         return policy_loss
 

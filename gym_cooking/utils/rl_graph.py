@@ -4,17 +4,17 @@ import matplotlib.pyplot as plt
 # The mean and variance graph shows the average and spread of rewards over multiple runs, 
 # while the learning curve tracks how the algorithm's performance improves over time during training
 
-# Sample rewards for Q-learning and Policy Gradient
+# Rewards Obtained for Q-learning and Policy Gradient
 q_learning_rewards = [
-    [10, 12, 11, 14, 13, 16, 15, 18, 17, 20, 19, 22, 21, 24, 23, 26, 25, 28, 27, 30],  # Q-learning rewards
-    [8, 11, 9, 12, 10, 13, 12, 15, 14, 17, 16, 19, 18, 21, 20, 23, 22, 25, 24, 27],       # Q-learning rewards
-    [9, 13, 11, 14, 12, 15, 14, 17, 16, 19, 18, 21, 20, 23, 22, 25, 24, 27, 26, 29]       # Q-learning rewards
+    [0, 16, 0, 14, 8, 14, 12, 24, 0, 18, 20, 22, 24, 32, 34, 20, 24, 20, 30, 24, 24, 24, 26, 32, 30, 34, 26, 26, 28, 34],  # Q-learning rewards
+    [8, 0, 0, 2, 12, 0, 16, 18, 12, 24, 20, 20, 20, 21, 26, 20, 14, 20, 27, 16, 22, 28, 20, 30, 30, 30, 24, 26, 28, 30],       # Q-learning rewards
+    [0, 0, 0, 2, 12, 0, 12, 18, 0, 24, 20, 20, 20, 21, 28, 20, 14, 20, 27, 16, 22, 26, 18, 30, 32, 30, 24, 26, 28, 30]
 ]
 
 policy_gradient_rewards = [
-    [20, 22, 21, 24, 23, 26, 25, 28, 27, 30, 29, 32, 31, 34, 33, 36, 35, 38, 37, 40],  # Policy Gradient rewards
-    [18, 21, 19, 22, 20, 23, 22, 25, 24, 27, 26, 29, 28, 31, 30, 33, 32, 35, 34, 37],    # Policy Gradient rewards
-    [19, 23, 21, 24, 22, 25, 24, 27, 26, 29, 28, 31, 30, 33, 32, 35, 34, 37, 36, 39]     # Policy Gradient rewards
+    [9, 17, 9, 12, 11, 15, 14, 9, 19, 19, 24, 30, 30, 28, 43, 34, 38, 41, 41, 54, 48, 52, 46, 48, 52, 48, 54, 54, 50, 54],
+    [9, 0, 11, 9, 0, 0, 11, 11, 14, 18, 24, 19, 24, 30, 41, 38, 36, 41, 38, 48, 52, 50, 46, 46, 46, 48, 48, 54, 50, 54],
+    [0, 9, 9, 12, 0, 15, 11, 11, 19, 19, 24, 30, 24, 28, 43, 32, 34, 40, 41, 50, 54, 48, 52, 46, 48, 52, 54, 54, 50, 54]
 ]
 
 # Graph of rewards over episodes with mean and variance

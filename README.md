@@ -2,7 +2,7 @@
 
 <!-- [[Full paper]](https://arxiv.org/abs/2003.11778) [[Journal paper]](https://onlinelibrary.wiley.com/doi/10.1111/tops.12525) [[Video]](https://www.youtube.com/watch?v=Fd4RcVaNthY&ab_channel=RoseWang) -->
 
-The following is a research project carried to create map generation for a multi-agent domain as well as evaluate the effectiveness of a proposed Bayesian Delegation method compared to Reinforcement Learning techniques such as Q-Learning and Policy Gradient. This repository is heavily based upon [https://github.com/rosewang2008/gym-cooking](https://github.com/rosewang2008/gym-cooking), which is about a Bayesian Delegation method for multi-agent collaboration, Winner of the CogSci 2020 Computational Modeling Prize in High Cognition.
+The following is a research project carried out to create map generation for a multi-agent domain as well as evaluate the effectiveness of a proposed Bayesian Delegation method compared to common Reinforcement Learning techniques such as Q-Learning and Policy Gradient. This repository is heavily based upon [https://github.com/rosewang2008/gym-cooking](https://github.com/rosewang2008/gym-cooking), which is about a Bayesian Delegation method for multi-agent collaboration, Winner of the CogSci 2020 Computational Modeling Prize in High Cognition.
 
 Contents:
 
@@ -86,11 +86,11 @@ The shortest commands can be (Some parameters have default values set):
 
 Note that Reinforcement Learning methods cannot be mixed with the other methods. If using Reinforcement Learning, all agents have to using the same method.
 
-Although our work uses object-oriented representations for observations/states, the `OvercookedEnvironment.step` function returns _image observations_ in the `info` object. They can be retrieved with `info['image_obs']`.
+Although the work uses object-oriented representations for observations/states, the `OvercookedEnvironment.step` function returns _image observations_ in the `info` object. They can be retrieved with `info['image_obs']`.
 
 ### Additional commands
 
-The above commands can also be appended with the following flags:
+It is recommended to use the following flag:
 
 - `--record` will save the observation at each time step as an image in `misc/game/record`.
 

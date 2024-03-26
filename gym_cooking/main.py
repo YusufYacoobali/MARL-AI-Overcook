@@ -18,6 +18,7 @@ import gym
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser("Overcooked 2 argument parser")
 
@@ -48,6 +49,7 @@ def parse_arguments():
     # Models
     # Valid options: `bd` = Bayes Delegation; `up` = Uniform Priors
     # `dc` = Divide & Conquer; `fb` = Fixed Beliefs; `greedy` = Greedy
+    # `pg` = Policy Gradient; `ql` = Q-Learning
     parser.add_argument("--model1", type=str, default=None, help="Model type for agent 1 (bd, up, dc, fb, greedy, pg or ql)")
     parser.add_argument("--model2", type=str, default=None, help="Model type for agent 2 (bd, up, dc, fb, greedy, pg or ql)")
     parser.add_argument("--model3", type=str, default=None, help="Model type for agent 3 (bd, up, dc, fb, greedy, pg or ql)")
@@ -83,13 +85,13 @@ def initialize_agents(arglist):
                             id_color=COLORS[len(real_agents)],
                             recipes=recipes)
                     real_agents.append(real_agent)
-
     return real_agents
 
 def main_loop(arglist):
 
     """The main loop for running experiments."""
     print("Initializing environment and agents.")
+    # Create map for game
     map = BaseMap(file_path='utils/levels/map.txt', arglist=arglist)
     map.start()
     arglist.level = "map"
@@ -98,6 +100,7 @@ def main_loop(arglist):
     #game = GameVisualize(env)
     real_agents = initialize_agents(arglist=arglist)
     rl_agents = []
+    max_steps_per_episode = int(arglist.grid_size) * 4
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
@@ -109,16 +112,15 @@ def main_loop(arglist):
 
     # Training loop for RL agents
     if rl_agents:
+        episode_rewards = []
+        epsilon_start = 0.9
+        epsilon_end = 0.1  
+        epsilon_decay = 0.85
+        num_episodes = int(arglist.eps)
 
         for agent in rl_agents:
             agent.in_training = True
 
-        episode_rewards = []
-        epsilon_start = 0.9
-        epsilon_end = 0.1  # or whatever minimum value you want epsilon to decay to
-        epsilon_decay = 0.85
-        num_episodes = int(arglist.eps)
-        max_steps_per_episode = int(arglist.grid_size) * 2
         for episode in range(num_episodes):
             # Reset the environment for a new episode
             print("Episode: ", episode)
@@ -126,34 +128,33 @@ def main_loop(arglist):
             epsilon = epsilon_start * (epsilon_decay ** episode)
             epsilon = max(epsilon, epsilon_end)
             obs = env.reset()
+
             for step in range(max_steps_per_episode):
                 action_dict = {}
                 for agent in rl_agents:
-                    action = agent.select_action(obs=obs, episode=episode, max_steps=int(arglist.grid_size) * 2, epsilon=epsilon)
+                    action = agent.select_action(obs=obs, episode=episode, max_steps=max_steps_per_episode, epsilon=epsilon)
                     action_dict[agent.name] = action
                     print(f"Agent {agent.name} selects action {action}")
                 # Take one step in the environment
                 obs, reward, done, info = env.step(action_dict=action_dict)
                 #episode_reward += reward
                 print(f"Step {step}: Reward = {reward}, Done = {done}")
-                print("EPSILON", epsilon)
 
                 for agent in rl_agents:
-                    agent.refresh_subtasks(world=env.world, reward=max_steps_per_episode +1 - step)
+                    agent.refresh_subtasks(world=env.world, reward=(max_steps_per_episode + 1) - step)
 
-                if done or step == max_steps_per_episode-1:
+                if done or step == max_steps_per_episode - 1:
+                    # Collect total rewards for the episode and train for policy gradient
                     for agent in rl_agents:
+                        episode_reward += sum(agent.rewards)
                         if agent.model_type == "pg":
                             agent.train()
-                        # Collect total rewards for the episode
-                        episode_reward += sum(agent.rewards)
                     break
 
             episode_rewards.append(episode_reward)
-
         print("Training for RL agents has finished")
         print(episode_rewards)
-        # Fit a linear regression line to the data
+
         slope, intercept, _, _, _ = linregress(range(1, num_episodes + 1), episode_rewards)
         regression_line = slope * np.arange(1, num_episodes + 1) + intercept
         # Plotting both the raw rewards and the regression line over episodes
@@ -170,15 +171,16 @@ def main_loop(arglist):
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
     bag.set_recipe(recipe_subtasks=env.all_subtasks)
-    # Tell all agents that training has concluded
+
+    # Turn RL agents training to be done
     for agent in rl_agents:
         agent.in_training = False
-
     obs = env.reset()
+
     while not env.done():
         action_dict = {}
         for agent in real_agents:
-            action = agent.select_action(obs=obs, episode=0, max_steps=int(arglist.grid_size) * 2, epsilon=0)
+            action = agent.select_action(obs=obs, episode=0, max_steps=max_steps_per_episode, epsilon=0)
             action_dict[agent.name] = action
 
         obs, reward, done, info = env.step(action_dict=action_dict)
