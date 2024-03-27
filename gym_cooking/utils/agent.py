@@ -124,6 +124,7 @@ class RealAgent:
                     actions = tuple(self.task_completion_status.keys())
                     # Find the action with the highest Q-value for the current state.
                     self.new_subtask = max(actions, key=lambda act: self.q_values.get((state, act), 0), default=None)
+
                 elif self.model_type == "pg":
                     completion_status_list = [status for status in self.task_completion_status.values()]
                     state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)
@@ -149,11 +150,13 @@ class RealAgent:
                 if np.random.rand() < epsilon:
                     # Choose a random action
                     self.new_subtask = np.random.choice(self.incomplete_subtasks)
+                    
                 elif self.model_type == "ql": 
                     state = tuple(status for status in self.task_completion_status.values())
                     actions = tuple(status for status in self.task_completion_status.keys())
                     # Find the action with the highest Q-value for the current state.
                     self.new_subtask = max(actions, key=lambda act: self.q_values.get((state, act), 0), default=None)
+
                 elif self.model_type == "pg": 
                     completion_status_list = [status for status in self.task_completion_status.values()]
                     state_tensor = torch.tensor(completion_status_list, dtype=torch.float32)

@@ -137,7 +137,6 @@ def main_loop(arglist):
                     print(f"Agent {agent.name} selects action {action}")
                 # Take one step in the environment
                 obs, reward, done, info = env.step(action_dict=action_dict)
-                #episode_reward += reward
                 print(f"Step {step}: Reward = {reward}, Done = {done}")
 
                 for agent in rl_agents:
@@ -152,6 +151,7 @@ def main_loop(arglist):
                     break
 
             episode_rewards.append(episode_reward)
+            print(episode_rewards)
         print("Training for RL agents has finished")
         print(episode_rewards)
 
