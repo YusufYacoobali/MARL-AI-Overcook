@@ -15,8 +15,6 @@ import argparse
 from collections import namedtuple
 
 import gym
-import matplotlib.pyplot as plt
-from scipy.stats import linregress
 
 
 def parse_arguments():
@@ -151,22 +149,7 @@ def main_loop(arglist):
                     break
 
             episode_rewards.append(episode_reward)
-            print(episode_rewards)
         print("Training for RL agents has finished")
-        print(episode_rewards)
-
-        slope, intercept, _, _, _ = linregress(range(1, num_episodes + 1), episode_rewards)
-        regression_line = slope * np.arange(1, num_episodes + 1) + intercept
-        # Plotting both the raw rewards and the regression line over episodes
-        plt.plot(range(1, num_episodes + 1), episode_rewards, label='Rewards per episode')
-        plt.plot(range(1, num_episodes + 1), regression_line, label='Line of best fit', color='red')
-        plt.xlabel('Episode')
-        plt.ylabel('Total Reward')
-        plt.title('Total Reward per Episode')
-        plt.grid(True)
-
-        plt.legend()
-        plt.show()
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
