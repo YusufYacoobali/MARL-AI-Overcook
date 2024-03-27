@@ -1,28 +1,23 @@
 # Code for OvercookedEnvironment (gym-cooking) and Alteration to "Too many cooks: Bayesian inference for coordinating multi-agent collaboration"
 
-[[Full paper]](https://arxiv.org/abs/2003.11778) [[Journal paper]](https://onlinelibrary.wiley.com/doi/10.1111/tops.12525) [[Video]](https://www.youtube.com/watch?v=Fd4RcVaNthY&ab_channel=RoseWang)
+<!-- [[Full paper]](https://arxiv.org/abs/2003.11778) [[Journal paper]](https://onlinelibrary.wiley.com/doi/10.1111/tops.12525) [[Video]](https://www.youtube.com/watch?v=Fd4RcVaNthY&ab_channel=RoseWang) -->
 
-The following is a research project carried out on the exisiting Bayesian Delegation method for multi-agent collaboration, Winner of the CogSci 2020 Computational Modeling Prize in High Cognition, and a NeurIPS 2020 CoopAI Workshop Best Paper.
+The following is a research project carried out to create map generation for a multi-agent domain as well as evaluate the effectiveness of a proposed Bayesian Delegation method compared to common Reinforcement Learning techniques such as Q-Learning and Policy Gradient. This repository is heavily based upon [https://github.com/rosewang2008/gym-cooking](https://github.com/rosewang2008/gym-cooking), which is about a Bayesian Delegation method for multi-agent collaboration, Winner of the CogSci 2020 Computational Modeling Prize in High Cognition.
 
 Contents:
 
-- [Introduction](#introduction)
+<!-- - [Introduction](#introduction) -->
+
 - [Installation](#installation)
 - [Usage](#usage)
 - [Environments and Recipes](docs/environments.md)
 - [Design and Customization](docs/design.md)
 - [Alterations](#alterations)
 
-## Introduction
-
 <p align="center">
     <img src="images/complete1.gif" width=260></img>
     <img src="images/complete2.gif" width=260></img>
 </p>
-
-This repository has been adapted from the original to include map generation which accounts for a multi-agent setting as well as implementing new ways of searching using Reinforcement Learning through techniques such as Q-Learning and Proximal Policy Optimization to see if it performs better than the proposed Bayesian Delegation. The following is what the original repository describes of the proposed Bayesian Delegation method:
-
-Collaboration requires agents to coordinate their behavior on the fly, sometimes cooperating to solve a single task together and other times dividing it up into sub-tasks to work on in parallel. Underlying the human ability to collaborate is theory-of-mind, the ability to infer the hidden mental states that drive others to act. Here, we develop Bayesian Delegation, a decentralized multi-agent learning mechanism with these abilities. Bayesian Delegation enables agents to rapidly infer the hidden intentions of others by inverse planning. We test Bayesian Delegation in a suite of multi-agent Markov decision processes inspired by cooking problems. On these tasks, agents with Bayesian Delegation coordinate both their high-level plans (e.g. what sub-task they should work on) and their low-level actions (e.g. avoiding getting in each other’s way). In a self-play evaluation, Bayesian Delegation outperforms alternative algorithms. Bayesian Delegation is also a capable ad-hoc collaborator and successfully coordinates with other agent types even in the absence of prior experience. Finally, in a behavioral experiment, we show that Bayesian Delegation makes inferences similar to human observers about the intent of others. Together, these results demonstrate the power of Bayesian Delegation for decentralized multi-agent collaboration.
 
 <!-- You can use this bibtex if you would like to cite this work (Wu and Wang et al., 2021):
 
@@ -81,7 +76,7 @@ The `<model name>` are the names of models described in the paper. Specifically 
 - `fb` for Fixed Beliefs,
 - `greedy` for Greedy,
 - `ql` for Q-Learning, and
-- `ppo` for Proximal Policy Optimization.
+- `pg` for Policy Gradient.
 
 For example, running the salad recipe with 2 agents using Q-Learning with 5 episodes to train looks like:
 `python3 main.py --dish Salad --num-agents 2 --model1 ql --model2 ql --grid-size 8 --grid-type o --eps 5 --record`
@@ -91,11 +86,11 @@ The shortest commands can be (Some parameters have default values set):
 
 Note that Reinforcement Learning methods cannot be mixed with the other methods. If using Reinforcement Learning, all agents have to using the same method.
 
-Although our work uses object-oriented representations for observations/states, the `OvercookedEnvironment.step` function returns _image observations_ in the `info` object. They can be retrieved with `info['image_obs']`.
+Although the work uses object-oriented representations for observations/states, the `OvercookedEnvironment.step` function returns _image observations_ in the `info` object. They can be retrieved with `info['image_obs']`.
 
 ### Additional commands
 
-The above commands can also be appended with the following flags:
+It is recommended to use the following flag:
 
 - `--record` will save the observation at each time step as an image in `misc/game/record`.
 
@@ -140,12 +135,13 @@ This section outlines where changes were made:
   This holds all the code for the map generation.
 
 - network.py was added.
-  This is a neural network used for when agents select the PPO method.
+  This is a neural network used for when agents select the Policy Gradient method.
 
 - agents.py was modified.
-  The implementation for adding the two additional methods, Q-Learning and PPO, were carried out. The changes include lines 52-61, 66-68, 113-153, 173-186, 224-236, 350-398.
+  The implementation for adding the two additional methods, Q-Learning and Policy Gradient, were carried out. The changes include lines 52-63, 68-70, 115-189, 209-221, 249-258, 379-438.
+
 - main.py was modified.
-  A training loop was added if the agents have a Reinforcement Learning method selected. In addition to this, new input parameters were added and some were removed. Furthermore integration of the map generation is also included in this file. The changes include lines 24-28, 93-149.
+  A training loop was added if the agents have a Reinforcement Learning method selected. In addition to this, new input parameters were added and some were removed. Furthermore integration of the map generation is also included in this file. The changes include lines 24-28, 93-161, 165-173.
 
 - Libraries in the setup file were added.
   This includes important libraries used like PyTorch

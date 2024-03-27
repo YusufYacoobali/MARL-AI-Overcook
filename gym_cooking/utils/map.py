@@ -273,18 +273,18 @@ class BaseMap:
         else:
             dish_name = self.arglist.dish.capitalize()
 
-        # Add dish to file 
-        self.layout.append(["\n", dish_name, "\n"])
+        # # Add dish to file 
+        # self.layout.append(["\n", dish_name, "\n"])
 
-        #Add chef coordinates to file
-        for x, y in player_object_coordinates:
-            self.layout.append([str(x), " ", str(y)])
+        # #Add chef coordinates to file
+        # for x, y in player_object_coordinates:
+        #     self.layout.append([str(x), " ", str(y)])
 
-        # Write the layout to the map file
-        with open(self.file_path, 'w') as f:
-            for row in self.layout:
-                f.write("".join(row) + '\n')
-        print("Map file made")
+        # # Write the layout to the map file
+        # with open(self.file_path, 'w') as f:
+        #     for row in self.layout:
+        #         f.write("".join(row) + '\n')
+        # print("Map file made")
 
     def add_ingredient(self, ingredient):
         """
@@ -536,9 +536,9 @@ class MandatoryCollabMap(BaseMap):
         surrounding_score = calculate_score(surrounding_counters=surrounding_counters)
         
         if separated_regions == 2:
-            fitness = fitness+20
+            fitness = fitness + 20
         elif separated_regions == 1 or separated_regions == 3:
-            fitness = fitness+2
+            fitness = fitness + 2
         fitness += surrounding_score
         return fitness, separated_regions
 
@@ -632,9 +632,9 @@ class OptionalCollabMap(BaseMap):
         surrounding_score = calculate_score(surrounding_counters=surrounding_counters)
         
         if separated_regions == 2:
-            fitness = fitness+30
+            fitness = fitness + 30
         elif separated_regions == 1 or separated_regions == 3:
-            fitness = fitness+2
+            fitness = fitness + 2
         fitness += surrounding_score
         return fitness, separated_regions
 
@@ -763,6 +763,6 @@ class RandomMap(BaseMap):
         """
         best_score = self.size * self.size * 0.3
         empty_spaces = sum(row.count(' ') for row in map)
-        difference = abs(empty_spaces - best_score * (self.size*0.35))
+        difference = abs(empty_spaces - best_score * (self.size * 0.35))
         score = best_score - difference
-        return score,0
+        return score, 0
