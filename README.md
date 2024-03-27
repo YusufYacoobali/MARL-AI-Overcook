@@ -102,7 +102,7 @@ To manually control agents and explore the environment, append the `--play` flag
 
 This will open up the environment in Pygame. Only one agent can be controlled at a time -- the current active agent can be moved with the arrow keys and toggled by pressing `1`, `2`, `3`, or `4` (up until the actual number of agents of course). Hit the Enter key to save a timestamped image of the current screen to `misc/game/screenshots`.
 
-### Reproducing paper results
+<!-- ### Reproducing paper results
 
 To run our full suite of computational experiments (self-play and ad-hoc), we've provided the scrip `run_experiments.sh` that runs our experiments on 20 seeds with `2` agents.
 
@@ -125,7 +125,7 @@ Results for homogenous teams (self-play experiments):
 ![graphs](images/graphs.png)
 
 Results for heterogeneous teams (ad-hoc experiments):
-![heatmaps](images/heatmaps.png)
+![heatmaps](images/heatmaps.png) -->
 
 ## Alterations
 
