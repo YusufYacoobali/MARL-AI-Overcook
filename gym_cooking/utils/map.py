@@ -273,18 +273,18 @@ class BaseMap:
         else:
             dish_name = self.arglist.dish.capitalize()
 
-        # # Add dish to file 
-        # self.layout.append(["\n", dish_name, "\n"])
+        # Add dish to file 
+        self.layout.append(["\n", dish_name, "\n"])
 
-        # #Add chef coordinates to file
-        # for x, y in player_object_coordinates:
-        #     self.layout.append([str(x), " ", str(y)])
+        #Add chef coordinates to file
+        for x, y in player_object_coordinates:
+            self.layout.append([str(x), " ", str(y)])
 
-        # # Write the layout to the map file
-        # with open(self.file_path, 'w') as f:
-        #     for row in self.layout:
-        #         f.write("".join(row) + '\n')
-        # print("Map file made")
+        # Write the layout to the map file
+        with open(self.file_path, 'w') as f:
+            for row in self.layout:
+                f.write("".join(row) + '\n')
+        print("Map file made")
 
     def add_ingredient(self, ingredient):
         """
