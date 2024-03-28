@@ -138,7 +138,7 @@ This section outlines where changes were made:
   This is a neural network used for when agents select the Policy Gradient method.
 
 - agents.py was modified.
-  The implementation for adding the two additional methods, Q-Learning and Policy Gradient, were carried out. The changes include lines 52-63, 68-70, 115-189, 209-221, 249-258, 379-438.
+  The implementation for adding the two additional methods, Q-Learning and Policy Gradient, were carried out. The changes include lines 52-63, 68-70, 113-188, 208-220, 248-258, 379-436.
 
 - main.py was modified.
   A training loop was added if the agents have a Reinforcement Learning method selected. In addition to this, new input parameters were added and some were removed. Furthermore integration of the map generation is also included in this file. The changes include lines 24-28, 93-161, 165-173.
