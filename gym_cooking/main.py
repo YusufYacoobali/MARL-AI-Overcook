@@ -98,7 +98,8 @@ def main_loop(arglist):
     #game = GameVisualize(env)
     real_agents = initialize_agents(arglist=arglist)
     rl_agents = []
-    max_steps_per_episode = int(arglist.grid_size) * 4
+    # Change max steps per training episode, the higher the better for training
+    max_steps_per_episode = int(arglist.grid_size) * 5
 
     # Info bag for saving pkl files
     bag = Bag(arglist=arglist, filename=env.filename)
@@ -129,6 +130,7 @@ def main_loop(arglist):
 
             for step in range(max_steps_per_episode):
                 action_dict = {}
+                # Action selection for RL agents
                 for agent in rl_agents:
                     action = agent.select_action(obs=obs, episode=episode, max_steps=max_steps_per_episode, epsilon=epsilon)
                     action_dict[agent.name] = action
@@ -137,6 +139,7 @@ def main_loop(arglist):
                 obs, reward, done, info = env.step(action_dict=action_dict)
                 print(f"Step {step}: Reward = {reward}, Done = {done}")
 
+                # If agents completed a task, they can use the reward
                 for agent in rl_agents:
                     agent.refresh_subtasks(world=env.world, reward=(max_steps_per_episode + 1) - step)
 

@@ -12,9 +12,9 @@ class BaseMap:
         try:
             self.size = int(arglist.grid_size)
             if not 4 <= self.size <= 20:
-                raise ValueError("Error: Invalid grid size. Use a number greater than 5 and less than 20.")
+                raise ValueError("Error: Invalid grid size. Use a number between 4 and 20.")
         except ValueError:
-            raise ValueError("Error: Invalid grid size. Please provide a valid number greater than 5 and less than 20.")
+            raise ValueError("Error: Invalid grid size. Please provide a valid number between 4 and 20.")
         self.arglist = arglist
         self.file_path = file_path
         self.object_chars = "tlp----/*"
@@ -60,7 +60,7 @@ class BaseMap:
         """
         This function is responsible for making the map through various other functions.
         It creates the initial population, picks the best ones and evolves them over many generations.
-    #   Then it returns the best layout made.
+        Then it returns the best layout made.
         """
         self.population = [self.generate_random_layout() for _ in range(self.population_size)]
         for generation in range(self.num_generations):
@@ -187,7 +187,7 @@ class BaseMap:
         Limits or adds a delivery station to be only one on the map
         Adds a plate and slicing counter if there isn't one and adds missing ingredients for the selected dish
         """
-        # Only leave 1 '*', change all others to '-'
+        # Only leave 1 delivery station, change all others to regular counter
         star_positions = [(i, j) for i, row in enumerate(self.layout) for j, char in enumerate(row) if char == '*']
         
         if len(star_positions) > 1:
@@ -241,7 +241,7 @@ class BaseMap:
             for col in range(self.size):
                 if not visited[row][col] and self.layout[row][col] == ' ':
                     _, region = self.getAllRegionCoordinates(row, col, visited, self.layout, [])
-                    if region:  # Ensure the region is not empty
+                    if region:  
                         regions.append(region)            
 
         # If the map is full with no space for the chefs, it tries 10 times before terminating
@@ -262,7 +262,7 @@ class BaseMap:
             player_object_coordinates.extend(flipped_coordinates)
             i += 1
 
-        new_order = [0, 2, 1, 3]  # Change the order as needed
+        new_order = [0, 2, 1, 3]  
         player_object_coordinates = [player_object_coordinates[i] for i in new_order]
 
        # Check if the dish is "simpletomato" or "simplelettuce"
@@ -348,7 +348,6 @@ class BaseMap:
         count += self.flood_fill(row, col - 1, visited, layout)
         return count
     
-    #gets all coordinates of the current region
     def getAllRegionCoordinates(self, row, col, visited, layout, current_region):
         """
         A modified flood fill method that also returns all coordinates in that region.
@@ -370,7 +369,7 @@ class BaseMap:
             return 0, current_region  
 
         visited[row][col] = True
-        current_region.append((row, col))  # Store the current coordinate in the list
+        current_region.append((row, col))  
 
         count = 1 
         count += self.getAllRegionCoordinates(row + 1, col, visited, layout, current_region)[0]
@@ -475,7 +474,7 @@ class MandatoryCollabMap(BaseMap):
 
             visited = [[False for _ in range(cols)] for _ in range(rows)]
             separated_regions = 0
-            #Slightly different to counting seperated regions, it only recognises a region if it has more than self.size connected cells
+            # Slightly different to counting seperated regions, it only recognises a region if it has more than self.size connected cells
             for row in range(rows):
                 for col in range(cols):
                     if not visited[row][col] and layout[row][col] == ' ':
@@ -527,7 +526,7 @@ class MandatoryCollabMap(BaseMap):
             for col in range(self.size):
                 if not visited[row][col] and map[row][col] == ' ':
                     _, region = self.getAllRegionCoordinates(row, col, visited, map, [])
-                    if region:  # Ensure the region is not empty
+                    if region:  
                         regions_cords.append(region)            
 
         # Get region coordinates, see whats surrounding it and calculate a score off unqiueness
@@ -574,7 +573,7 @@ class OptionalCollabMap(BaseMap):
             layout = self.avoid_crowding(layout)
             visited = [[False for _ in range(cols)] for _ in range(rows)]
             separated_regions = 0
-            #Slightly different to counting seperated regions, it only recognises a region if it has more than self.size connected cells
+            # Slightly different to counting seperated regions, it only recognises a region if it has more than self.size connected cells
             for row in range(rows):
                 for col in range(cols):
                     if not visited[row][col] and layout[row][col] == ' ':
@@ -708,14 +707,14 @@ class GroupedTasksMap(BaseMap):
         fitness_score = 0
         counters_to_score = ['/','l','t','p']
 
-        # group the counters and their coordinates
+        # Group the counters and their coordinates
         counter_groups = {char: [] for char in self.object_chars if char != ' '}
         for row_idx, row in enumerate(map):
             for col_idx, char in enumerate(row):
                 if char in counter_groups:
                     counter_groups[char].append((row_idx, col_idx))
 
-        # calculate position between each of them and average them out for each type
+        # Calculate position between each of them and average them out for each type
         for counter_type in counters_to_score:
             positions = counter_groups.get(counter_type, [])
             num_counters = len(positions)
@@ -730,7 +729,7 @@ class GroupedTasksMap(BaseMap):
                 average_distance = total_distance / (num_counters * (num_counters - 1))
                 normalized_distance = average_distance / (self.size + self.size)
 
-                # score is from 0 to 10, 10 being the best case and it gets smaller as distance increases
+                # Score is from 0 to 10, 10 being the best case and it gets smaller as distance increases
                 score = max(0, 10 - normalized_distance * 10)
                 fitness_score += score
         return fitness_score, 0

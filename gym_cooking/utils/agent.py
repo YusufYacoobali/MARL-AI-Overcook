@@ -109,10 +109,9 @@ class RealAgent:
 
         if obs.t == 0:
             self.setup_subtasks(env=obs, episode=episode)
-
-        # Select subtask based on Bayesian Delegation.
         self.update_subtasks(env=obs)
         self.task_length += 1
+
         print("\nAgent Is Training: ", self.in_training)
 
         if self.is_using_reinforcement_learning and self.task_length <= max_steps:
@@ -246,6 +245,7 @@ class RealAgent:
             self.subtask, self.is_subtask_complete(world),
             self.planner.subtask, self.planner.goal_obj))
         
+        # Collect data for RL training or train it directly
         if self.is_using_reinforcement_learning and self.subtask_complete and self.in_training:
             if self.model_type == "ql":
                 self.update_q_values(reward)
@@ -405,14 +405,12 @@ class RealAgent:
         states, actions, rewards = self.states, self.actions, self.rewards
         # Convert to PyTorch tensors
         states = torch.tensor(states, dtype=torch.float32)
-        # Convert actions to indices based on ordering of tasks
         action_indices = [list(self.task_completion_status.keys()).index(action) for action in actions]
         actions = torch.tensor(action_indices, dtype=torch.int64)
         rewards = torch.tensor(rewards, dtype=torch.float32)
         
-        # Compute loss and optimize
+        # Compute loss and optimize network
         try:
-            # Loss is computed
             loss = self.compute_loss(states, actions, rewards)
             # Clears previous gradients for fresh new data
             self.optimizer.zero_grad()
